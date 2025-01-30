@@ -4,12 +4,16 @@ import ButtonPrompt from "./ButtonPrompt";
 
 import LiberalPolicy from "../assets/policy-liberal.png";
 import FascistPolicy from "../assets/policy-fascist.png";
+import CommunistPolicy from "../assets/policy-communist.png";
+import SocioDemocraticPolicy from "../assets/policy-socio-democratic.png";
+import AntiFascistPolicy from "../assets/policy-anti-fascist.png";
+import AntiCommunistPolicy from "../assets/policy-anti-communist.png";
 import FolderCoverFront from "../assets/policy-folder-cover-front.png";
 import FolderCoverBack from "../assets/policy-folder-cover-back.png";
 import FolderBack from "../assets/policy-folder-back.png";
 
 import "./PolicyEnactedAlert.css";
-import { LIBERAL } from "../constants";
+import { ANTICOMMUNIST, ANTIFASCIST, COMMUNIST, FASCIST, LIBERAL, SOCIODEMOCRATIC } from "../constants";
 
 class PolicyEnactedAlert extends Component {
   shiftAnimationTimeout;
@@ -38,6 +42,19 @@ class PolicyEnactedAlert extends Component {
   }
 
   render() {
+    let policySrc = LiberalPolicy;
+    let policyType = this.props.policyType;
+    if(policyType === FASCIST){
+      policySrc = FascistPolicy;
+    } else if(policyType === COMMUNIST){
+      policySrc = CommunistPolicy;
+    } else if(policyType === ANTIFASCIST){
+      policySrc = AntiFascistPolicy;
+    } else if(policyType === ANTICOMMUNIST){
+      policySrc = AntiCommunistPolicy;
+    } else if(policyType === SOCIODEMOCRATIC){
+      policySrc = SocioDemocraticPolicy;
+    }
     return (
       <ButtonPrompt
         renderLabel={() => {
@@ -56,17 +73,16 @@ class PolicyEnactedAlert extends Component {
           <img
             id={"policy-enacted-policy"}
             className={this.state.className}
-            src={
-              this.props.policyType === LIBERAL ? LiberalPolicy : FascistPolicy
-            }
+            src={policySrc}
             alt={
               "A " +
-                this.props.policyType.toLowerCase() +
+                policyType.toLowerCase() +
                 " policy that was enacted! " +
-                this.props.policyType ===
-              LIBERAL
+                (policyType === LIBERAL || policyType === SOCIODEMOCRATIC) 
                 ? "It's printed in blue with a dove insignia on it."
-                : "It's printed in red with a skull insignia on it."
+                : ((policyType === COMMUNIST || policyType === ANTICOMMUNIST)
+                ? "It's printed in burgundy with a sickle and the crescent moon on it." 
+                : "It's printed in red with a skull insignia on it.")
             }
           />
           <img

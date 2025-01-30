@@ -124,6 +124,7 @@ class ChancellorLegislativePrompt extends Component<
           onClick={(index: number) => this.setState({ selection: index })}
           selection={this.state.selection}
           allowSelection={true}
+          name={undefined}
         />
       </ButtonPrompt>
     );

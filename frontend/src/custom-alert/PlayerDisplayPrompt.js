@@ -24,9 +24,15 @@ class PlayerDisplayPrompt extends Component{
                 headerText={props.headerText}
                 renderHeader={props.renderHeader}
                 footerText={props.footerText}
+                
                 buttonText={props.buttonText}
                 buttonDisabled={this.state.selection === undefined || this.props.buttonDisabled}
                 buttonOnClick={() => props.buttonOnClick(this.state.selection)}
+                
+                secondButtonText={props.secondButtonText}
+                secondButtonDisabled={this.props.secondButtonDisabled}
+                secondButtonOnClick={() => props.secondButtonOnClick(this.state.selection)}
+                secondButtonExists={props.secondButtonExists}
             >
                 <PlayerDisplay
                     gameState = {this.props.gameState}
@@ -53,7 +59,15 @@ PlayerDisplayPrompt.defaultProps = {
     buttonText: "CONFIRM",
     buttonOnClick: (selectedItem) => {
         console.log("Button clicked with " + selectedItem + " selected.");
-    }
+    },
+
+    secondButtonText: "CANCEL",
+    secondButtonOnClick: (selectedItem) => {
+        console.log("Second Button clicked with " + selectedItem + " selected.");
+    },
+    secondButtonDisabled: false,
+    secondButtonExists: false,
+
 };
 
 PlayerDisplayPrompt.propTypes = {
@@ -69,6 +83,11 @@ PlayerDisplayPrompt.propTypes = {
     buttonText: PropTypes.string,
     buttonOnClick: PropTypes.func,
     buttonDisabled: PropTypes.bool,
+
+    secondButtonText: PropTypes.string,
+    secondButtonOnClick: PropTypes.func,
+    secondButtonDisabled: PropTypes.bool,
+    secondButtonExists: PropTypes.bool,
 };
 
 export default PlayerDisplayPrompt;

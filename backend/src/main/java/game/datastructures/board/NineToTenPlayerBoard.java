@@ -5,19 +5,19 @@ import game.datastructures.Policy;
 public class NineToTenPlayerBoard extends Board{
 
     @Override
-    public PresidentialPower getActivatedPower() {
+    public BoardPower getActivatedPower() {
         if (getLastEnactedType() == Policy.Type.FASCIST) {
             switch (getNumFascistPolicies()) {
                 case 1:
                 case 2:
-                    return PresidentialPower.INVESTIGATE;
+                    return BoardPower.INVESTIGATE;
                 case 3:
-                    return PresidentialPower.ELECTION;
+                    return BoardPower.ELECTION;
                 case 4:
                 case 5:
-                    return PresidentialPower.EXECUTION;
+                    return BoardPower.EXECUTION;
             }
         }
-        return PresidentialPower.NONE;
+        return BoardPower.NONE;
     }
 }

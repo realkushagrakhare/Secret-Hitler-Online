@@ -43,6 +43,16 @@ import {
   STATE_FASCIST_VICTORY_POLICY,
   STATE_LIBERAL_VICTORY_EXECUTION,
   STATE_LIBERAL_VICTORY_POLICY,
+  STATE_COMMUNIST_VICTORY_EXECUTION,
+  STATE_COMMUNIST_VICTORY_POLICY,
+  STATE_PP_BUGGING,
+  STATE_CHANCELLOR_POWER_BUGGING,
+  STATE_PP_GET_BUGGING_IDENTITY,
+  STATE_CP_RADICALISATION,
+  STATE_CP_RADICALISATION_ACCEPT_DENY,
+  STATE_ANARCHIST_POWER_ASSASSINATION,
+  STATE_FIVE_YEAR_PLAN,
+  STATE_POLICY_REMOVAL,
   WEBSOCKET_HEADER,
   DEBUG,
   PACKET_PONG,
@@ -50,6 +60,15 @@ import {
   SERVER_PING,
   PARAM_ICON,
   PARAM_INVESTIGATION,
+  PACKET_BUGGING,
+  PARAM_BUGGED,
+  PARAM_ACCEPTED,
+  STATE_CONGRESS,
+  STATE_PP_CONFESSION,
+  STATE_MONARCHIST_POWER_ELECTION,
+  STATE_MONARCHIST_OPPOSITION_NOMINATION,
+  STATE_MONARCHIST_ELECTION_VOTING,
+  STATE_MONARCHIST_ELECTION_TIE,
 } from "./constants";
 
 import PlayerDisplay, {
@@ -59,15 +78,22 @@ import PlayerDisplay, {
 import StatusBar from "./status-bar/StatusBar";
 import Board from "./board/Board";
 import VotingPrompt from "./custom-alert/VotingPrompt";
+import AcceptDenyPrompt from "./custom-alert/AcceptDenyPrompt"
 import PresidentLegislativePrompt from "./custom-alert/PresidentLegislativePrompt";
 import ChancellorLegislativePrompt from "./custom-alert/ChancellorLegislativePrompt";
 import VetoPrompt from "./custom-alert/VetoPrompt";
 import ElectionTrackerAlert from "./custom-alert/ElectionTrackerAlert";
 import PolicyEnactedAlert from "./custom-alert/PolicyEnactedAlert";
 import {
+  MonarchistPowerSelectPrompt,
+  SelectAssassinationPrompt,
+  SelectBuggingPrompt,
+  SelectConfessionPrompt,
   SelectExecutionPrompt,
   SelectInvestigationPrompt,
   SelectNominationPrompt,
+  SelectOppositionPrompt,
+  SelectRadicalisationPrompt,
   SelectSpecialElectionPrompt,
 } from "./custom-alert/SelectPlayerPrompt";
 import ButtonPrompt from "./custom-alert/ButtonPrompt";
@@ -78,6 +104,7 @@ import PlayerPolicyStatus from "./util/PlayerPolicyStatus";
 
 import VictoryFascistHeader from "./assets/victory-fascist-header.png";
 import VictoryLiberalHeader from "./assets/victory-liberal-header.png";
+import VictoryHeaderCommunist from "./assets/victory-communist-header.png";
 import IconSelection from "./custom-alert/IconSelection";
 import HelmetMetaData from "./util/HelmetMetaData";
 import { defaultPortrait } from "./assets";
@@ -88,11 +115,13 @@ import AnnouncementBox from "./util/AnnouncementBox";
 import {
   GameState,
   LobbyState,
+  PolicyType,
   Role,
   ServerRequestPayload,
   WSCommand,
   WSCommandType,
 } from "./types";
+import GetBuggingIdentityPromt from "./custom-alert/GetBuggingIdentityPrompt";
 
 const EVENT_BAR_FADE_OUT_DURATION = 500;
 const CUSTOM_ALERT_FADE_DURATION = 1000;
@@ -100,6 +129,7 @@ const CUSTOM_ALERT_FADE_DURATION = 1000;
 const DEFAULT_GAME_STATE: GameState = {
   liberalPolicies: 0,
   fascistPolicies: 0,
+  communistPolicies: 0,
   discardSize: 0,
   drawSize: 17,
   players: {},
@@ -120,6 +150,26 @@ const DEFAULT_GAME_STATE: GameState = {
   lastPolicy: "",
   peek: [],
   icon: {},
+  doesAnarchistKnowCommunists: false,
+  vetoList: [],
+  vetoRemaining: 3,
+  isExpansionGame: false,
+  numCommunist: 0,
+  numFascist: 0,
+  numLiberal: 0,
+  hasAnarchist: false,
+  hasMonarchist: false,
+  communist1: "",
+  communist2: "",
+  radicalisationSuccess: false,
+  policyRemoved: undefined,
+  anarchist: "",
+  monarchist: "",
+  usedAnarchistPower: true,
+  policyRemovedPlace: [-1, -1, -1],
+  antiPolicyPlace: [-1, -1, -1],
+  monarchistCandidate: "",
+  opposition: "",
 };
 
 const COOKIE_NAME = "name";
@@ -151,6 +201,7 @@ type AppState = {
   lastState: any;
   liberalPolicies: number;
   fascistPolicies: number;
+  communistPolicies: number;
   /*The position of the election tracker, ranging from 0 to 3.*/
   electionTracker: number;
   showVotes: boolean;
@@ -181,6 +232,7 @@ const defaultAppState: AppState = {
   lastState: {},
   liberalPolicies: 0,
   fascistPolicies: 0,
+  communistPolicies: 0,
   electionTracker: 0,
   showVotes: false,
   drawDeckSize: 17,
@@ -229,6 +281,7 @@ class App extends Component<{}, AppState> {
     this.onClickLeaveLobby = this.onClickLeaveLobby.bind(this);
     this.onClickCopy = this.onClickCopy.bind(this);
     this.onClickStartGame = this.onClickStartGame.bind(this);
+    this.onClickStartCommunistExpansionGame = this.onClickStartCommunistExpansionGame.bind(this);
     this.sendWSCommand = this.sendWSCommand.bind(this);
     this.showSnackBar = this.showSnackBar.bind(this);
     this.onAnimationFinish = this.onAnimationFinish.bind(this);
@@ -419,9 +472,10 @@ class App extends Component<{}, AppState> {
   async onWebSocketMessage(msg: MessageEvent) {
     this.failedConnections = 0;
     let message = JSON.parse(msg.data);
+    console.log(JSON.stringify(message));
     // Decode message contents as communication is encoded
     if (DEBUG) {
-      console.log(message);
+      console.log(JSON.stringify(message));
     }
     switch (message[PARAM_PACKET_TYPE]) {
       case PACKET_LOBBY:
@@ -456,7 +510,7 @@ class App extends Component<{}, AppState> {
         console.log(
           "Investigated player role: " + message[PARAM_INVESTIGATION]
         );
-        // Set party to liberal/fascist using sent packet
+        // Set party to liberal/fascist/communist using sent packet
         const party = message[PARAM_INVESTIGATION];
 
         this.queueAlert(
@@ -467,6 +521,24 @@ class App extends Component<{}, AppState> {
           />,
           false
         );
+        break;
+      case PACKET_BUGGING:
+        console.log(
+          "Bugged player role: " + message[PARAM_BUGGED]
+        );
+        const accepted = message[PARAM_ACCEPTED];
+        if(accepted === true){
+          // Set party to liberal/fascist/communist using sent packet
+          const partyMembership = message[PARAM_BUGGED];
+          this.queueAlert(
+            <InvestigationAlert
+              party={partyMembership}
+              target={message[PARAM_TARGET]}
+              hideAlert={this.hideAlertAndFinish}
+            />,
+            false
+          );
+        }
         break;
       case PACKET_PONG:
       default:
@@ -679,13 +751,13 @@ class App extends Component<{}, AppState> {
   renderLoginPage() {
     return (
       <div className="App">
-        <header className="App-header">SECRET-HITLER.ONLINE</header>
+        <header className="App-header">SECRET-HITLER.ORG</header>
         <br />
         <div style={{ textAlign: "center" }}>
           {/** TODO: Add reusable announcement component. 
                     <div style={{backgroundColor: "#222222", width: "50vmin", margin: "0 auto", padding: "20px"}}>
                         <p>
-                            Hello! Secret Hitler Online is currently undergoing some maintenance.
+                            Hello! Secret Hitler Org is currently undergoing some maintenance.
                             Sorry for the interruption and please check back in in a few hours! -Shrimp
                         </p>
                         <p style={{fontStyle: "italic", fontSize: "calc(8px + 1vmin)"}}>(DATE TIME PM PT)</p>
@@ -775,7 +847,7 @@ class App extends Component<{}, AppState> {
       return (
         <Player
           key={i}
-          name={i === 0 ? name : name + " [Host]"}
+          name={i === 0 ? name + "[VIP]" : name}
           showRole={false}
           icon={this.state.icons[name]}
           isBusy={this.state.icons[name] === defaultPortrait}
@@ -824,7 +896,20 @@ class App extends Component<{}, AppState> {
         return false;
       }
     }
-    return true;
+    return this.state.usernames.length <= 10;
+  }
+
+  /**
+   * Determines whether the 'Start Expansion Game' button in the lobby should be enabled.
+   */
+  shouldStartExpansionGameBeEnabled() {
+    // Verify that all players have icons
+    for (let i = 0; i < this.state.usernames.length; i++) {
+      if (this.state.icons[this.state.usernames[i]] === defaultPortrait) {
+        return false;
+      }
+    }
+    return this.state.usernames.length >= 3 && this.state.usernames.length <= 15;
   }
 
   /**
@@ -837,6 +922,17 @@ class App extends Component<{}, AppState> {
     });
     this.sendWSCommand({ command: WSCommandType.START_GAME });
   }
+
+  /**
+     * Contacts the server and requests to start of communist expansion game.
+     */
+    onClickStartCommunistExpansionGame() {
+      ReactGA.event({
+        category: "Starting Game",
+        action: this.state.usernames.length + " players started game.",
+      });
+      this.sendWSCommand({ command: WSCommandType.START_COMMUNIST_EXPANSION_GAME });
+    }
 
   onClickLeaveLobby() {
     this.websocket?.close();
@@ -877,7 +973,7 @@ class App extends Component<{}, AppState> {
       this.state.usernames[0] === this.state.name;
     return (
       <div className="App">
-        <header className="App-header">SECRET-HITLER.ONLINE</header>
+        <header className="App-header">SECRET-HITLER.ORG</header>
 
         <CustomAlert show={this.state.showAlert}>
           {this.state.alertContent}
@@ -909,7 +1005,7 @@ class App extends Component<{}, AppState> {
             <textarea
               id="linkText"
               readOnly={true}
-              value={"https://secret-hitler.online/?lobby=" + this.state.lobby}
+              value={"https://secret-hitler.org/?lobby=" + this.state.lobby}
             />
             <button onClick={this.onClickCopy}>COPY</button>
           </div>
@@ -939,6 +1035,12 @@ class App extends Component<{}, AppState> {
                 disabled={!isVIP || !this.shouldStartGameBeEnabled()}
               >
                 START GAME
+              </button>
+              <button
+                onClick={this.onClickStartCommunistExpansionGame}
+                disabled={!isVIP || !this.shouldStartExpansionGameBeEnabled()}
+              >
+                COMMUNIST EXPANSION GAME
               </button>
               <button onClick={this.onClickLeaveLobby}>LEAVE LOBBY</button>
             </div>
@@ -1018,6 +1120,29 @@ class App extends Component<{}, AppState> {
     }
   }
 
+  revealIdentity(name: string, revealName: string, newState: GameState): void {
+    this.queueAlert(
+      <ButtonPrompt
+          label={"SPECIAL POWER"}
+          footerText={
+            revealName +
+            " has decide to reveal their identity and use their special power."
+          }
+          buttonOnClick={this.hideAlertAndFinish}
+          buttonText={"OKAY"}
+        >
+          <PlayerDisplay
+            user={name}
+            gameState={newState}
+            showRoles={true}
+            playerDisabledFilter={DISABLE_EXECUTED_PLAYERS}
+            players={[revealName]}
+          />
+      </ButtonPrompt>,
+      false
+    );
+  }
+
   /**
    * Queues animations for when the game state has changed.
    * @param newState {Object} the new game state sent from the server.
@@ -1051,8 +1176,11 @@ class App extends Component<{}, AppState> {
       LobbyState.PP_EXECUTION,
       LobbyState.PP_ELECTION,
       LobbyState.PP_PEEK,
+      LobbyState.PP_BUGGING,
+      LobbyState.CHANCELLOR_POWER_BUGGING,
       LobbyState.FASCIST_VICTORY_POLICY,
       LobbyState.LIBERAL_VICTORY_POLICY,
+      LobbyState.COMMUNIST_VICTORY_POLICY,
     ];
     if (statesToShowPolicyFor.includes(state)) {
       // Check if the election tracker changed positions.
@@ -1085,8 +1213,10 @@ class App extends Component<{}, AppState> {
         newState.liberalPolicies !== oldState.liberalPolicies;
       let fascistChanged =
         newState.fascistPolicies !== oldState.fascistPolicies;
+      let communistChanged =
+        newState.communistPolicies !== oldState.communistPolicies;
 
-      if (liberalChanged || fascistChanged) {
+      if (liberalChanged || fascistChanged || communistChanged) {
         // Show an alert with the new policy
         this.queueAlert(
           <PolicyEnactedAlert
@@ -1101,6 +1231,7 @@ class App extends Component<{}, AppState> {
         this.setState({
           liberalPolicies: newState.liberalPolicies,
           fascistPolicies: newState.fascistPolicies,
+          communistPolicies: newState.communistPolicies,
           electionTracker: newState.electionTracker,
         });
         setTimeout(() => this.onAnimationFinish(), 500);
@@ -1109,13 +1240,15 @@ class App extends Component<{}, AppState> {
 
     // Check for state change
     if (newState[PARAM_STATE] !== this.state.gameState[PARAM_STATE]) {
+      JSON.stringify(newState);
       // state has changed
       switch (newState[PARAM_STATE]) {
         case STATE_CHANCELLOR_NOMINATION:
           if (
             newState.electionTracker === 0 &&
             newState.liberalPolicies === 0 &&
-            newState.fascistPolicies === 0
+            newState.fascistPolicies === 0 &&
+            newState.communistPolicies === 0
           ) {
             // If the game has just started (everything in default state), show the player's role.
             this.queueAlert(
@@ -1145,6 +1278,7 @@ class App extends Component<{}, AppState> {
 
           break;
 
+        case STATE_MONARCHIST_ELECTION_VOTING:
         case STATE_CHANCELLOR_VOTING:
           this.setState({ statusBarText: "" });
           this.queueEventUpdate("VOTING");
@@ -1163,7 +1297,27 @@ class App extends Component<{}, AppState> {
               true
             );
           }
+          break;
 
+        case STATE_MONARCHIST_ELECTION_TIE:
+          this.setState({ statusBarText: "" });
+          this.queueEventUpdate("MONARCHIST ELECTION TIE");
+          this.queueStatusMessage("Waiting for monarchist to have the final say.");
+          // Only monarchist gets to vote in case of tie.
+          if (
+            newState.players[name][PLAYER_IS_ALIVE] &&
+            !Object.keys(newState.userVotes).includes(name) &&
+            name === newState.monarchist
+          ) {
+            this.queueAlert(
+              <VotingPrompt
+                gameState={newState}
+                sendWSCommand={this.sendWSCommand}
+                user={this.state.name}
+              />,
+              true
+            );
+          }
           break;
 
         case STATE_LEGISLATIVE_PRESIDENT:
@@ -1185,6 +1339,7 @@ class App extends Component<{}, AppState> {
               <PresidentLegislativePrompt
                 policyOptions={newState.presidentChoices}
                 sendWSCommand={this.sendWSCommand}
+                isPresidentLegislative={true}
               />
             );
           }
@@ -1241,6 +1396,10 @@ class App extends Component<{}, AppState> {
               <PeekPrompt
                 policies={newState.peek}
                 sendWSCommand={this.sendWSCommand}
+                names={undefined}
+                label={"PEEK"}
+                hideAlert={undefined}
+                text={"These are the next three policies in the draw deck."}
               />,
               true
             );
@@ -1250,7 +1409,7 @@ class App extends Component<{}, AppState> {
             );
           }
           break;
-
+        
         case STATE_PP_ELECTION:
           this.queueEventUpdate("PRESIDENTIAL POWER");
           if (isPresident) {
@@ -1290,7 +1449,222 @@ class App extends Component<{}, AppState> {
             );
           }
           break;
+        
+        case STATE_PP_BUGGING:
+          const buggingFooter = newState.lastState === STATE_CHANCELLOR_POWER_BUGGING
+          ? "Previous bugging request on " + newState.targetUser + " was vetoed by the chancellor."
+          : "";
+          const buggingHeader = "Investigation: President, " + newState.president + ", is choosing a player for bugging. "
+              + "Chancellor" + newState.chancellor + ", can either accept this request or deny, and he has upto " + newState.vetoRemaining + " vetoes. "
+              + "If chancellor decides accept, first the chancellor and then the president will view the party membership"
+              + " of the selected player.";
 
+          this.queueEventUpdate("PRESIDENTIAL POWER");
+          if (isPresident) {
+            this.queueAlert(
+              SelectBuggingPrompt(name, newState, this.sendWSCommand)
+            );
+          } else {
+            this.queueAlert(
+              <ButtonPrompt
+                label={"BUGGING"}
+                footerText={buggingFooter}
+                headerText={buggingHeader}
+                buttonOnClick={this.hideAlertAndFinish}
+                buttonText={"OKAY"}
+              >
+              </ButtonPrompt>,
+            );
+          }
+          break;
+        
+        case STATE_CHANCELLOR_POWER_BUGGING:
+          this.queueEventUpdate("CHANCELLOR POWER");
+          if(isChancellor){
+            this.queueAlert(
+              <AcceptDenyPrompt
+                gameState={newState}
+                sendWSCommand={this.sendWSCommand}
+                user={this.state.name}
+                targetName={this.state.gameState.targetUser!}
+              />,
+            )
+          } else {
+            this.queueStatusMessage(
+              "Bugging: Chancellor is deciding if " + newState.targetUser + ", selected by the President, should be bugged. "
+              + "Chancellor has upto " + newState.vetoRemaining + " vetoes remaining. "
+              
+            );
+          }
+          break;
+        
+        case STATE_PP_GET_BUGGING_IDENTITY:
+          this.queueEventUpdate("PRESIDENT POWER");
+          if(isPresident){
+            this.queueAlert(
+              <GetBuggingIdentityPromt
+                target={newState.targetUser}
+                sendWSCommand={this.sendWSCommand}
+                chancellor={newState.chancellor}
+              />,
+            )
+          } else {
+            this.queueStatusMessage(
+              "Bugging: Chancellor has viewed the party membership of the selected player."
+              + "And now president is doing the same."
+            );
+          }
+          break;
+
+        case STATE_CP_RADICALISATION:
+          this.queueEventUpdate("COMMUNIST POWER");
+          if(name === newState.communist1){
+            this.queueAlert(
+              SelectRadicalisationPrompt(name, newState, this.sendWSCommand)
+            );
+          } else {
+            this.queueStatusMessage(
+              "Radicalisation: The communists are selecting the player to radicalise."
+            );
+          }
+          break;
+
+        case STATE_CP_RADICALISATION_ACCEPT_DENY:
+          if(name === newState.communist2){
+            this.queueAlert(
+              <AcceptDenyPrompt
+                gameState={newState}
+                sendWSCommand={this.sendWSCommand}
+                user={this.state.name}
+                targetName={this.state.gameState.targetUser!}
+              />,
+            )
+          } else if(name === newState.communist1){
+            this.queueStatusMessage(
+              "Your fellow communist is deciding to go ahead or veto the radicalisation choice."
+            );
+          }
+          break;
+
+        case STATE_ANARCHIST_POWER_ASSASSINATION:
+          this.queueEventUpdate("ANARCHIST POWER");
+          if(name === newState.anarchist){
+            this.queueAlert(
+              SelectAssassinationPrompt(name, newState, this.sendWSCommand),
+              true
+            );
+          } else {
+            this.queueStatusMessage(
+              "Assassination: The anarchist now has the power to execute a player."
+            );
+            this.revealIdentity(name, newState.anarchist, newState);
+          }
+          break;
+        
+        case STATE_POLICY_REMOVAL:
+          if(isPresident || isChancellor){
+            if(newState.policyRemovalMap === undefined ||
+              !Object.keys(newState.policyRemovalMap).includes(name))
+            {
+              if (!newState.peek) {
+                throw new Error("Peek policies not found during policy removal state.");
+              }
+              this.queueAlert(
+                <PresidentLegislativePrompt
+                  policyOptions={newState.peek}
+                  sendWSCommand={this.sendWSCommand}
+                  isPresidentLegislative={false}
+                />
+              );
+            }
+          } else {
+            this.queueStatusMessage(
+              "Policy Removal: The president and the chancellor will both select a policy." 
+              + "\nIf they select the same, it will be removed from the game."
+            );
+          }
+          break;
+        
+        case STATE_PP_CONFESSION:
+          this.queueEventUpdate("PRESIDENTIAL POWER");
+          if (isPresident) {
+            this.queueAlert(
+              SelectConfessionPrompt(name, newState, this.sendWSCommand)
+            );
+          } else {
+            this.queueStatusMessage(
+              "Confession: President is choosing a player to execute and then "
+              + " reveal that player's party membership to everyone."
+            );
+          }
+          break;
+        
+        case STATE_MONARCHIST_POWER_ELECTION:
+          this.queueEventUpdate("MONARCHIST POWER");
+          if(newState.monarchist === name){
+            this.queueAlert(
+              MonarchistPowerSelectPrompt(name, newState, this.sendWSCommand),
+            );
+          } else {
+            this.queueStatusMessage(
+              "Special Election: Monarchist is deciding whether to use his power to call for special election."
+            );
+          }
+          break;
+        
+        case STATE_MONARCHIST_OPPOSITION_NOMINATION:
+          this.revealIdentity(name, newState.monarchist, newState);
+          if(isPresident){
+            this.queueAlert(
+              SelectOppositionPrompt(name, newState, this.sendWSCommand),
+            );
+          } else {
+            this.queueAlert(
+              <ButtonPrompt
+                  label={"SPECIAL POWER"}
+                  footerText={
+                    newState.monarchist +
+                    " has decide to reveal their identity and use their special power."
+                  }
+                  buttonOnClick={this.hideAlertAndFinish}
+                  buttonText={"OKAY"}
+                >
+                  <PlayerDisplay
+                    user={name}
+                    gameState={newState}
+                    showRoles={true}
+                    playerDisabledFilter={DISABLE_EXECUTED_PLAYERS}
+                    players={[name]}
+                  />
+              </ButtonPrompt>,
+              false
+            );
+
+            if(name !== newState.monarchist){
+              let isTarget = newState.monarchistCandidate === name;
+              let footerText = isTarget
+                ? `You are selected as chancellor candidate by the monarchist. The President ${newState[PARAM_PRESIDENT]} will now pick an opposition candidate.`
+                : `${newState.monarchistCandidate} is selected as candidate by the monarchist. The President ${newState[PARAM_PRESIDENT]} will now pick an opposition candidate.`;
+              this.queueAlert(
+                <ButtonPrompt
+                  label={"MONARCHIST  SELECTION"}
+                  footerText={footerText}
+                  buttonOnClick={this.hideAlertAndFinish}
+                  buttonText={"OKAY"}
+                >
+                  <PlayerDisplay
+                    user={name}
+                    gameState={newState}
+                    showLabels={false}
+                    players={[newState.monarchistCandidate!]}
+                  />
+                </ButtonPrompt>,
+                true
+              );
+            }
+          }
+          break;
+        
         case STATE_POST_LEGISLATIVE:
           // Show results of any special elections, executions, or investigations.
           switch (newState.lastState) {
@@ -1325,6 +1699,31 @@ class App extends Component<{}, AppState> {
               // If player was executed
               this.showExecutionResults(name, newState);
               break;
+
+            case STATE_ANARCHIST_POWER_ASSASSINATION:
+              this.showExecutionResults(name, newState);
+              break;
+            
+            case STATE_PP_CONFESSION:
+              this.showExecutionResults(name, newState);
+              const role = newState.players[name].id;
+              let party = "LIBERAL";
+              if (role === Role.COMMUNIST || role === Role.ANARCHIST){
+                party = "COMMUNIST";
+              } else if(role === Role.FASCIST || role === Role.HITLER || role === Role.MONARCHIST){
+                party = "FASCIST";
+              }
+
+              this.queueAlert(
+                <InvestigationAlert
+                  party={party}
+                  target={newState.targetUser}
+                  hideAlert={this.hideAlertAndFinish}
+                />,
+                false
+              );
+              break;
+
             case STATE_PP_INVESTIGATE:
               if (!isPresident) {
                 let isTarget = newState.targetUser === name;
@@ -1356,6 +1755,127 @@ class App extends Component<{}, AppState> {
                 // response directly from the server.
               }
               break;
+            case STATE_PP_GET_BUGGING_IDENTITY:
+              if (!isPresident) {
+                let isTarget = newState.targetUser === name;
+                let footerText = isTarget
+                  ? `You were bugged. The President ${newState[PARAM_PRESIDENT]} and the Chancellor ${newState[PARAM_PRESIDENT]} know your party affiliation.`
+                  : `${newState.targetUser} was bugged. The President ${newState[PARAM_PRESIDENT]} and the Chancellor ${newState[PARAM_PRESIDENT]} know their party affiliation.`;
+                this.queueAlert(
+                  <ButtonPrompt
+                    label={"BUGGING SELECTION"}
+                    footerText={footerText}
+                    buttonOnClick={this.hideAlertAndFinish}
+                    buttonText={"OKAY"}
+                  >
+                    <PlayerDisplay
+                      user={name}
+                      gameState={newState}
+                      showLabels={false}
+                      players={[newState.targetUser!]}
+                    />
+                  </ButtonPrompt>,
+                  true
+                );
+              } else {
+                // Is President; do nothing because we handle the
+                // response directly from the server.
+              }
+              break;
+
+            case STATE_CP_RADICALISATION_ACCEPT_DENY:
+              if (newState.targetUser === name) {
+                if(newState.radicalisationSuccess){
+                  this.queueAlert(
+                    <RoleAlert
+                      role={newState.players[this.state.name].id}
+                      gameState={newState}
+                      name={name}
+                      onClick={() => {
+                        this.hideAlertAndFinish();
+                      }}
+                    />,
+                    false
+                  );
+                }
+              } else if(name === newState.communist1 || name === newState.communist2
+              || (newState.players[name].id === Role.ANARCHIST 
+              && newState.doesAnarchistKnowCommunists)){
+                let footerText = `The radicalisation of ${newState.targetUser} 
+                ${newState.radicalisationSuccess?"SUCCEEDED":"FAILED"}!`;
+                this.queueAlert(
+                  <ButtonPrompt
+                    label={"RADICALISATION"}
+                    footerText={footerText}
+                    buttonOnClick={this.hideAlertAndFinish}
+                    buttonText={"OKAY"}
+                  >
+                    <PlayerDisplay
+                      user={name}
+                      gameState={newState}
+                      showLabels={false}
+                      players={[newState.targetUser!]}
+                    />
+                  </ButtonPrompt>,
+                  true
+                );
+              } 
+              break;
+            
+            case STATE_FIVE_YEAR_PLAN:
+              this.queueEventUpdate("COMMUNIST POWER");
+              if (!newState.peek) {
+                throw new Error("5 year plan policies not found.");
+              }
+              this.queueAlert(
+                <PeekPrompt
+                  policies={newState.peek}
+                  sendWSCommand={this.sendWSCommand}
+                  names={undefined}
+                  hideAlert={this.hideAlertAndFinish}
+                  text={"As part of part year plan upto 2 communist and 1 liberal"
+                    + " policies are added from discard to the draw pile."
+                    + "These are the policies that were added to the draw pile."}
+                  label={"FIVE YEAR PLAN"}
+                />,
+                true
+              );
+              break;
+            
+            case STATE_CONGRESS:
+              this.queueEventUpdate("COMMUNIST POWER");
+              if (!newState.peek) {
+                throw new Error("5 year plan policies not found.");
+              }
+              this.queueStatusMessage(
+                "CONGRESS: The newly radicalised communist will come to know who "
+                + " the other communists are."
+              );
+              break;
+
+            
+            case STATE_POLICY_REMOVAL:
+              if (!newState.policyRemovalMap) {
+                throw new Error("Policy removal choices not found.");
+              }
+              let policies: PolicyType[] = [
+                newState.policyRemovalMap[newState.president],
+                newState.policyRemovalMap[newState.chancellor]];
+              let names: string[] = [newState.president, newState.chancellor];
+              this.queueAlert(
+                <PeekPrompt
+                  policies={policies}
+                  sendWSCommand={this.sendWSCommand}
+                  names={names}
+                  hideAlert={this.hideAlertAndFinish}
+                  text={"A policy is selected by the president and the chancellor separately. If they match, the selected policy will be removed from the game."}
+                  label={"POLICY REMOVAL"}
+                />,
+                true
+              );
+              /* To-Do: Add animation for removing policy.*/
+              break;
+
             case STATE_PP_PEEK: // No additional case is necessary for peeking.
             default:
           }
@@ -1369,8 +1889,11 @@ class App extends Component<{}, AppState> {
         case STATE_FASCIST_VICTORY_ELECTION:
         case STATE_FASCIST_VICTORY_POLICY:
         case STATE_LIBERAL_VICTORY_POLICY:
+        case STATE_COMMUNIST_VICTORY_EXECUTION:
+        case STATE_COMMUNIST_VICTORY_POLICY:
           // Show normal enactments when victory events happen.
-          if (newState.state === STATE_LIBERAL_VICTORY_EXECUTION) {
+          if (newState.state === STATE_LIBERAL_VICTORY_EXECUTION
+            || newState.state === STATE_COMMUNIST_VICTORY_EXECUTION) {
             this.showExecutionResults(name, newState);
           }
           if (newState.state === STATE_FASCIST_VICTORY_ELECTION) {
@@ -1382,10 +1905,13 @@ class App extends Component<{}, AppState> {
           // Divide fascist and liberal players.
           const fascistPlayers: string[] = [];
           const liberalPlayers: string[] = [];
+          const communistPlayers: string[] = [];
           newState.playerOrder.forEach((player) => {
             const role = newState.players[player].id;
             if (role === Role.FASCIST || role === Role.HITLER) {
               fascistPlayers.push(player);
+            } else if(role === Role.COMMUNIST || role === Role.ANARCHIST){
+              communistPlayers.push(player);
             } else {
               liberalPlayers.push(player);
             }
@@ -1400,14 +1926,19 @@ class App extends Component<{}, AppState> {
           let fascistVictoryPolicy = state === STATE_FASCIST_VICTORY_POLICY;
           let fascistVictoryElection = state === STATE_FASCIST_VICTORY_ELECTION;
           let liberalVictoryPolicy = state === STATE_LIBERAL_VICTORY_POLICY;
-          let liberalVictoryExecution =
-            state === STATE_LIBERAL_VICTORY_EXECUTION;
+          let liberalVictoryExecution = state === STATE_LIBERAL_VICTORY_EXECUTION;
+          let communistVictoryPolicy = state === STATE_COMMUNIST_VICTORY_POLICY;
+          let communistVictoryExecution = state === STATE_COMMUNIST_VICTORY_EXECUTION;
           let playerID = newState.players[name].id;
           let playerWon =
             (playerID === Role.LIBERAL &&
               (liberalVictoryExecution || liberalVictoryPolicy)) ||
-            (playerID !== Role.LIBERAL &&
-              (fascistVictoryElection || fascistVictoryPolicy));
+            ((playerID === Role.HITLER || playerID === Role.FASCIST) &&
+              (fascistVictoryElection || fascistVictoryPolicy)) ||
+            ((playerID === Role.ANARCHIST || playerID === Role.COMMUNIST) &&
+              (communistVictoryExecution || communistVictoryExecution)) ||
+            ((playerID === Role.MONARCHIST) && (communistVictoryExecution ||
+              liberalVictoryExecution || fascistVictoryPolicy));
 
           // Register player victory/loss with analytics.
           // TODO: Only register if player is host, or if player is the only
@@ -1415,17 +1946,17 @@ class App extends Component<{}, AppState> {
           if (playerWon) {
             ReactGA.event({
               category: "Victory",
-              action: playerID + " team won the game.",
+              action: playerID + " won the game.",
             });
           } else {
             ReactGA.event({
               category: "Loss",
-              action: playerID + " team lost the game.",
+              action: playerID + " lost the game.",
             });
           }
 
           if (fascistVictoryElection || fascistVictoryPolicy) {
-            players = fascistPlayers.concat(liberalPlayers);
+            players = fascistPlayers.concat(liberalPlayers).concat(communistPlayers);
             headerImage = VictoryFascistHeader;
             headerAlt = "Fascist Victory, written in red with a skull icon.";
             messageClass = "highlight";
@@ -1435,8 +1966,18 @@ class App extends Component<{}, AppState> {
               victoryMessage =
                 "Fascists successfully elected Hitler as chancellor!";
             }
+          } else if(communistVictoryPolicy || communistVictoryExecution){
+            players = communistPlayers.concat(liberalPlayers).concat(fascistPlayers);
+            headerImage = VictoryHeaderCommunist;
+            headerAlt = "Communist Victory, written in burgundy with a sickle icon.";
+            messageClass = "highlight-burgundy";
+            if (liberalVictoryPolicy) {
+              victoryMessage = "Communists successfully passed six policies!";
+            } else if (liberalVictoryExecution) {
+              victoryMessage = "Communists successfully executed Hitler!";
+            }
           } else {
-            players = liberalPlayers.concat(fascistPlayers);
+            players = liberalPlayers.concat(fascistPlayers).concat(communistPlayers);
             headerImage = VictoryLiberalHeader;
             headerAlt = "Liberal Victory, written in blue with a dove icon.";
             messageClass = "highlight-blue";
@@ -1699,9 +2240,32 @@ class App extends Component<{}, AppState> {
    * Renders the game page.
    */
   renderGamePage() {
+    let fascistUneacted = 11 - this.state.gameState.fascistPolicies;
+    let liberalUneacted = 6 - this.state.gameState.liberalPolicies;
+    let communistUneacted = 8 - this.state.gameState.communistPolicies;
+    let policyRemoved = this.state.gameState.policyRemoved;
+    if(policyRemoved === PolicyType.COMMUNIST){
+      communistUneacted--;
+    } else if(policyRemoved === PolicyType.FASCIST){
+      fascistUneacted--;
+    } else if(policyRemoved === PolicyType.LIBERAL) {
+      liberalUneacted--;
+    }
+
+    let president = this.state.gameState[PARAM_PRESIDENT];
+    let isPresidentAlive = this.state.gameState.players[president].alive;
+    /*if(this.state.gameState.targetUser === undefined){
+      this.state.gameState.targetUser = this.state.name;
+    }*/
+
+    let disableEndTerm = !(this.state.gameState.state === STATE_POST_LEGISLATIVE && 
+    ((this.state.name === president && isPresidentAlive) || 
+    (!isPresidentAlive && this.state.name !== this.state.gameState.anarchist)));
+  
+    
     return (
       <div className="App" style={{ textAlign: "center" }}>
-        <header className="App-header">SECRET-HITLER.ONLINE</header>
+        <header className="App-header">SECRET-HITLER.ORG</header>
 
         <CustomAlert show={this.state.showAlert}>
           {this.state.alertContent}
@@ -1746,11 +2310,7 @@ class App extends Component<{}, AppState> {
 
               <div style={{ margin: "auto auto" }}>
                 <button
-                  disabled={
-                    this.state.gameState[PARAM_STATE] !==
-                      STATE_POST_LEGISLATIVE ||
-                    this.state.name !== this.state.gameState[PARAM_PRESIDENT]
-                  }
+                  disabled={disableEndTerm}
                   onClick={() => {
                     this.sendWSCommand({ command: WSCommandType.END_TERM });
                   }}
@@ -1758,11 +2318,38 @@ class App extends Component<{}, AppState> {
                   {" "}
                   END TERM
                 </button>
-
+                {( this.state.gameState.isExpansionGame &&
+                  <button
+                    disabled={
+                      this.state.gameState[PARAM_STATE] !==
+                        STATE_POST_LEGISLATIVE ||
+                      this.state.gameState.players[this.state.name].id 
+                      !== Role.ANARCHIST || this.state.gameState.usedAnarchistPower
+                    }
+                    onClick={() => this.queueAlert(
+                      <AcceptDenyPrompt
+                        gameState={this.state.gameState}
+                        sendWSCommand={this.sendWSCommand}
+                        user={this.state.name}
+                        targetName={this.state.name!}
+                      />,
+                    )}
+                  >
+                    {" "}
+                    POWER
+                  </button>
+                )}
                 <PlayerPolicyStatus
-                  numFascistPolicies={this.state.fascistPolicies}
-                  numLiberalPolicies={this.state.liberalPolicies}
+                  unenactedFascistPolicies={fascistUneacted}
+                  unenactedLiberalPolicies={liberalUneacted}
+                  unenactedCommunistPolicies={communistUneacted}
                   playerCount={this.state.gameState.playerOrder.length}
+                  isExpansionGame={this.state.gameState.isExpansionGame}
+                  numLiberalPlayers={this.state.gameState.numLiberal}
+                  numCommunistPlayers={this.state.gameState.numCommunist}
+                  numFascistPlayers={this.state.gameState.numFascist}
+                  hasAnarchist={this.state.gameState.hasAnarchist}
+                  hasMonarchist={this.state.gameState.hasMonarchist}
                 />
               </div>
 
@@ -1776,7 +2363,11 @@ class App extends Component<{}, AppState> {
               numPlayers={this.state.gameState.playerOrder.length}
               numFascistPolicies={this.state.fascistPolicies}
               numLiberalPolicies={this.state.liberalPolicies}
+              numCommunistPolicies={this.state.communistPolicies}
+              isExpansionGame={this.state.gameState.isExpansionGame}
               electionTracker={this.state.electionTracker}
+              antiPolicyPlace={this.state.gameState.antiPolicyPlace}
+              policyRemovedPlace={this.state.gameState.policyRemovedPlace}
             />
           </div>
         </div>

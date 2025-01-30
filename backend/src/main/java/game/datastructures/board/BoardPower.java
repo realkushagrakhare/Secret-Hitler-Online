@@ -4,10 +4,16 @@ package game.datastructures.board;
  * Presidential powers are triggered when a set number of fascist policies have been enacted.
  * These vary between each {@code Board}.
  */
-public enum PresidentialPower {
+public enum BoardPower {
     NONE,
     PEEK,
     INVESTIGATE,
     EXECUTION,
-    ELECTION
+    ELECTION,
+    BUGGING,
+    RADICALISATION,
+    FIVEYEARPLAN,
+    CONGRESS,
+    CONFESSION,
+    POLICYREMOVAL,
 }

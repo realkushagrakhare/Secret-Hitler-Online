@@ -31,12 +31,12 @@ class LoginPageContent extends Component {
             <>
                 <div id={"#login-page-description-container"}>
                     <div id={"login-page-description-text-container"}>
-                        <h2 id={"login-page-description-text-header"}>What is Secret Hitler Online?</h2>
+                        <h2 id={"login-page-description-text-header"}>What is Secret Hitler Org?</h2>
                         <p id={"login-page-description-text"}>
-                            Secret Hitler Online is an adaptation of the original Secret Hitler board game,
+                            Secret Hitler Org is an adaptation of the original Secret Hitler board game,
                             reimagined for the web.
-                            It supports up to 10 players, featuring smooth art and animations with all the secrecy and
-                            intrigue of the original. It's designed to be easy to pick up and play for any quarantine
+                            It supports up to 15 players, featuring smooth art and animations with all the secrecy and
+                            intrigue of the original, as well as the communist expansion. It's designed to be easy to pick up and play for any quarantine
                             game night.<br/><br/>Play for free in your browser, with no ads ever!
                             <br/><br/>
                         </p>

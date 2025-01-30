@@ -7,6 +7,10 @@ import { PolicyType, SendWSCommand, WSCommandType } from "../types";
 type PeekPromptProps = {
   policies: PolicyType[];
   sendWSCommand: SendWSCommand;
+  names: string[] | undefined;
+  label: string;
+  text: string;
+  hideAlert: Function | undefined,
 };
 
 type PeekPromptState = {
@@ -27,14 +31,18 @@ class PeekPrompt extends Component<PeekPromptProps, PeekPromptState> {
   }
 
   onButtonClick() {
-    // Lock the button so that it can't be pressed multiple times.
-    this.setState({ waitingForServer: true });
-    this.timeoutID = setTimeout(() => {
-      this.setState({ waitingForServer: false });
-    }, SERVER_TIMEOUT);
-
-    // Contact the server using provided method.
-    this.props.sendWSCommand({ command: WSCommandType.REGISTER_PEEK });
+    
+    if(this.props.hideAlert !== undefined){
+      this.props.hideAlert();
+    } else {
+      // Lock the button so that it can't be pressed multiple times.
+      this.setState({ waitingForServer: true });
+      this.timeoutID = setTimeout(() => {
+        this.setState({ waitingForServer: false });
+      }, SERVER_TIMEOUT);
+      // Contact the server using provided method.
+      this.props.sendWSCommand({ command: WSCommandType.REGISTER_PEEK });
+    }
   }
 
   componentWillUnmount() {
@@ -44,14 +52,15 @@ class PeekPrompt extends Component<PeekPromptProps, PeekPromptState> {
   render() {
     return (
       <ButtonPrompt
-        label={"PEEK"}
-        headerText={"These are the next three policies in the draw deck."}
+        label={this.props.label}
+        headerText={this.props.text}
         buttonText={"OKAY"}
         buttonOnClick={this.onButtonClick}
         buttonDisabled={this.state.waitingForServer}
       >
         <PolicyDisplay
           policies={this.props.policies}
+          names={this.props.names}
           onClick={(index: number) => this.setState({ selection: index })}
           allowSelection={false}
         />

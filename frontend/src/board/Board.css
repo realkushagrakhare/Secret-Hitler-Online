@@ -58,9 +58,36 @@
     100% {top:30%;}
 }
 
+/* Removal of policies */
+.remove {
+    visibility: visible;
+    transition-timing-function: ease-in-out;
+    -webkit-animation: lift 1s, disapper 0.3s 1s;
+    animation: lift 1s, disapper 0.3s 1s;
+}
+
+@-webkit-keyframes disappear {
+    0% {opacity: 1; top: 100%;}
+    100% {opacity: 0; top: 100%;}
+}
+
+@keyframes disappear {
+    0% {opacity: 1; top: 100%;}
+    100% {opacity: 0; top: 100%;}
+}
+
+@-webkit-keyframes lift {
+    0% {top: 30%}
+    100% {top: 10%}
+}
+
+@keyframes lift {
+    0% {top: 30%}
+    100% {top: 10%}
+}
 
 /* Election Tracker Animations */
 #election-tracker {
     transition: 1.0s left;
-    transition-timing-function: ease-in-out;
+    transition-timing-function: ease-in;
 }

@@ -173,9 +173,9 @@ class IconSelection extends Component<IconSelectionProps, IconSelectionState> {
                 game, so this would be a big help.
               </p>
               <TwitterShareButton
-                url={"https://secret-hitler.online!"}
+                url={"https://secret-hitler.org!"}
                 options={{
-                  text: "I'm playing #SecretHitlerOnline at",
+                  text: "I'm playing #SecretHitlerOrg at",
                   size: "large",
                 }}
                 onLoad={this.addTwitterHooks}
@@ -201,12 +201,12 @@ class IconSelection extends Component<IconSelectionProps, IconSelectionState> {
             <div id={"locked-icon-text-container"}>
               <p>
                 (You unlocked {lockedPortraits.length} extra icons by sharing
-                Secret Hitler Online! Thank you! 💖)
+                Secret Hitler Org! Thank you! 💖)
               </p>
               <TwitterShareButton
-                url={"https://secret-hitler.online!"}
+                url={"https://secret-hitler.org!"}
                 options={{
-                  text: "I'm playing #SecretHitlerOnline at",
+                  text: "I'm playing #SecretHitlerOrg at",
                   size: "large",
                 }}
                 onLoad={this.addTwitterHooks}

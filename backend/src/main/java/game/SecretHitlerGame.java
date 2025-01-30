@@ -40,7 +40,7 @@ public class SecretHitlerGame implements Serializable {
     public static final int MAX_PLAYERS = 10;
 
     public static final int MAX_FAILED_ELECTIONS = 3;
-    private static final float VOTING_CUTOFF = 0.5000001f;
+    protected static final float VOTING_CUTOFF = 0.5000001f;
     private static final int MIN_DRAW_DECK_SIZE = 3;
 
     public static final int PRESIDENT_DRAW_SIZE = 3;
@@ -51,26 +51,26 @@ public class SecretHitlerGame implements Serializable {
     /////////////////// Private Fields
     // <editor-fold desc="Private Fields">
 
-    private List<Player> playerList;
-    private Board board;
-    private Deck discard;
-    private Deck draw;
+    protected List<Player> playerList;
+    protected Board board;
+    protected Deck discard;
+    protected Deck draw;
 
     private int electionTracker;
 
-    private GameState state;
-    private GameState lastState = GameState.SETUP;
+    protected GameState state;
+    protected GameState lastState = GameState.SETUP;
     private int round;
 
-    private Random random;
+    protected Random random;
 
     // The last president and chancellor that were successfully voted into office.
-    private String lastPresident;
-    private String lastChancellor;
-    private Policy.Type lastEnactedPolicy = Policy.Type.FASCIST;
+    protected String lastPresident;
+    protected String lastChancellor;
+    protected Policy.Type lastEnactedPolicy = Policy.Type.FASCIST;
 
-    private String currentPresident;
-    private String currentChancellor;
+    protected String currentPresident;
+    protected String currentChancellor;
 
     // Used during a session with the PRESIDENTIAL_POWER_ELECTION power active to
     // remember the next president.
@@ -81,7 +81,7 @@ public class SecretHitlerGame implements Serializable {
     private String electedPresident;
 
     // The player that was targeted with the last presidential power.
-    private String target;
+    protected String target;
 
     // The options available to either the President or the Chancellor during the
     // legislative session
@@ -90,7 +90,10 @@ public class SecretHitlerGame implements Serializable {
     private boolean didElectionTrackerAdvance = false;
     private boolean didVetoOccurThisTurn = false;
 
-    private HashMap<String, Boolean> voteMap;
+    protected HashMap<String, Boolean> voteMap;
+
+    protected int numFascistPlayers;
+    protected int numLiberalPlayers;
 
     // </editor-fold>
 
@@ -153,6 +156,20 @@ public class SecretHitlerGame implements Serializable {
         return didVetoOccurThisTurn;
     }
 
+    public int getNumFascistPlayers() { return numFascistPlayers; }
+
+    public int getNumLiberalPlayers() { return numLiberalPlayers; }
+
+    public boolean doesAnarchistKnowCommunists(){
+        throw new IllegalArgumentException("Anarchists are " +
+                "not allowed without playing the expansion.");
+    }
+
+    public int buggingTries(){
+        throw new IllegalArgumentException("Bugging is not " +
+                "allowed without playing the expansion.");
+    }
+
     // </editor-fold>
 
     /////////////////// Constructor
@@ -172,19 +189,9 @@ public class SecretHitlerGame implements Serializable {
      *          chancellor nomination process.
      */
     public SecretHitlerGame(Collection<String> players) {
-        if (players.size() < MIN_PLAYERS) {
-            throw new IllegalArgumentException("There must be at least " + MIN_PLAYERS + " to start the game (only "
-                    + players.size() + " provided).");
-        } else if (players.size() > MAX_PLAYERS) {
-            throw new IllegalArgumentException(
-                    "There can be a max of " + MAX_PLAYERS + " in a game (" + players.size() + " provided).");
-        }
 
-        // Set up the list of players.
-        playerList = new ArrayList<>();
-        for (String name : players) {
-            playerList.add(new Player(name));
-        }
+        // Validation for player count and setup players
+        validateAndSetUpPlayer(players);
 
         random = new Random();
         electionTracker = 0;
@@ -195,13 +202,7 @@ public class SecretHitlerGame implements Serializable {
         electionTracker = 0;
 
         // Assign a new board based on the number of players.
-        if (playerList.size() <= 6) {
-            board = new FiveToSixPlayerBoard();
-        } else if (playerList.size() <= 8) {
-            board = new SevenToEightPlayerBoard();
-        } else {
-            board = new NineToTenPlayerBoard();
-        }
+        assignBoard();
 
         currentPresident = playerList.get(0).getUsername();
         currentChancellor = null;
@@ -210,6 +211,31 @@ public class SecretHitlerGame implements Serializable {
 
         state = GameState.CHANCELLOR_NOMINATION;
         round = 1;
+
+    }
+
+    protected void validateAndSetUpPlayer(Collection<String> players){
+        if (players.size() < MIN_PLAYERS) {
+            throw new IllegalArgumentException("There must be at least " + MIN_PLAYERS + " to start the game (only "
+                    + players.size() + " provided).");
+        } else if (players.size() > MAX_PLAYERS) {
+            throw new IllegalArgumentException(
+                    "There can be a max of " + MAX_PLAYERS + " in a game (" + players.size() + " provided).");
+        }
+        playerList = new ArrayList<>();
+        for (String name : players) {
+            playerList.add(new Player(name));
+        }
+    }
+
+    protected void assignBoard(){
+        if (playerList.size() <= 6) {
+            board = new FiveToSixPlayerBoard();
+        } else if (playerList.size() <= 8) {
+            board = new SevenToEightPlayerBoard();
+        } else {
+            board = new NineToTenPlayerBoard();
+        }
     }
 
     // </editor-fold>
@@ -275,7 +301,7 @@ public class SecretHitlerGame implements Serializable {
      * @effects empties the discard deck, fills the draw deck with a standard card
      *          count, and shuffles.
      */
-    private void resetDeck() {
+    protected void resetDeck() {
         draw = new Deck();
         discard = new Deck();
 
@@ -302,7 +328,7 @@ public class SecretHitlerGame implements Serializable {
      *          # fascists: 1 1 2 2 3 3
      *          # hitler: 1 1 1 1 1 1
      */
-    private void assignRoles() {
+    protected void assignRoles() {
         int players = playerList.size();
         if (players < MIN_PLAYERS) {
             throw new IllegalStateException("Cannot assign roles with insufficient players.");
@@ -310,7 +336,9 @@ public class SecretHitlerGame implements Serializable {
             throw new IllegalStateException("Cannot assign roles with too many players.");
         }
 
-        int numFascistsToSet = NUM_FASCISTS_FOR_PLAYERS[players];
+        int numFascistsToSet = numFascistPlayers = NUM_FASCISTS_FOR_PLAYERS[players];
+        numLiberalPlayers = players - numFascistPlayers - 1;
+
 
         // Set all players to default state
         for (Player player : playerList) {
@@ -363,7 +391,7 @@ public class SecretHitlerGame implements Serializable {
      *          LIBERAL_VICTORY_POLICY states if the
      *          win conditions for policies are met.
      */
-    private void checkIfGameOver() {
+    protected void checkIfGameOver() {
         if (board.isFascistVictory()) {
             this.lastState = this.state;
             state = GameState.FASCIST_VICTORY_POLICY;
@@ -484,17 +512,15 @@ public class SecretHitlerGame implements Serializable {
             throw new IllegalArgumentException("Player " + username + " is not in the game and cannot vote.");
         } else if (voteMap.containsKey(username)) {
             throw new IllegalStateException("Player " + username + " cannot vote twice.");
-        } else if (state != GameState.CHANCELLOR_VOTING) {
+        } else if (state != GameState.CHANCELLOR_VOTING && state != GameState.MONARCHIST_ELECTION_VOTING) {
             throw new IllegalStateException("Player " + username + " cannot vote when a vote is not taking place.");
         }
 
         voteMap.put(username, vote);
-
         // Count up votes and check if all votes have been submitted.
         boolean allPlayersHaveVoted = true;
         int totalVotes = 0;
         int totalYesVotes = 0;
-
         for (Player player : playerList) {
             String playerName = player.getUsername();
 
@@ -510,6 +536,11 @@ public class SecretHitlerGame implements Serializable {
             }
         }
 
+        resolveVotes(allPlayersHaveVoted, totalVotes, totalYesVotes);
+    }
+
+
+    protected void resolveVotes(boolean allPlayersHaveVoted, int totalVotes, int totalYesVotes){
         if (allPlayersHaveVoted) {
             if (((float) totalYesVotes / (float) totalVotes) > VOTING_CUTOFF) { // vote passed successfully
                 lastChancellor = currentChancellor;
@@ -525,6 +556,7 @@ public class SecretHitlerGame implements Serializable {
             }
         }
     }
+
 
     /**
      * Returns a map representing what each player voted.
@@ -544,7 +576,7 @@ public class SecretHitlerGame implements Serializable {
      *          If the tracker == 2, rests the tracker to 0 and enacts the first
      *          policy on the top of the draw pile.
      */
-    private void advanceElectionTracker() {
+    protected void advanceElectionTracker() {
         didElectionTrackerAdvance = true;
         electionTracker += 1;
         if (electionTracker == MAX_FAILED_ELECTIONS) {
@@ -558,7 +590,7 @@ public class SecretHitlerGame implements Serializable {
 
             onEnactPolicy(newPolicy.getType());
         } else {
-            concludePresidentialActions();
+            concludeBoardActions();
         }
     }
 
@@ -572,7 +604,7 @@ public class SecretHitlerGame implements Serializable {
      * @modifies this
      * @effects advances the state to {@code POST_LEGISLATIVE}.
      */
-    private void concludePresidentialActions() {
+    protected void concludeBoardActions() {
         this.lastState = this.state;
         this.state = GameState.POST_LEGISLATIVE;
     }
@@ -646,7 +678,7 @@ public class SecretHitlerGame implements Serializable {
      * Starts the legislative session.
      * Sets the available policies and the game state.
      */
-    private void startLegislativeSession() {
+    protected void startLegislativeSession() {
         // Action may be triggered more than once in failure states,
         // so only update lastState once
         if (this.state != this.lastState && this.state != GameState.LEGISLATIVE_PRESIDENT) {
@@ -845,6 +877,13 @@ public class SecretHitlerGame implements Serializable {
         }
 
         this.lastState = this.state;
+        setStateAfterPolicyEnact();
+    }
+
+    /**
+     * Gets the new state of the game after policy enacted.
+     */
+    protected void setStateAfterPolicyEnact(){
         switch (board.getActivatedPower()) {
             case PEEK:
                 state = GameState.PRESIDENTIAL_POWER_PEEK;
@@ -898,7 +937,7 @@ public class SecretHitlerGame implements Serializable {
      * @effects Advances the state to {@code POST_LEGISLATIVE}.
      */
     public void endPeek() {
-        concludePresidentialActions();
+        concludeBoardActions();
     }
 
     /**
@@ -917,23 +956,34 @@ public class SecretHitlerGame implements Serializable {
     public Identity investigatePlayer(String username) {
         if (state != GameState.PRESIDENTIAL_POWER_INVESTIGATE) {
             throw new IllegalStateException("Cannot investigate a player when the power is not active.");
-        } else if (!hasPlayer(username)) {
-            throw new IllegalArgumentException("Player " + username + " does not exist.");
-        } else if (!getPlayer(username).isAlive()) {
-            throw new IllegalArgumentException("Cannot investigate a dead player (" + username + ").");
-        } else if (getPlayer(username).hasBeenInvestigated()) {
-            throw new IllegalArgumentException("Cannot investigate a player twice (" + username + ").");
         }
 
-        target = username;
-        getPlayer(username).investigate(); // sets a flag that this player has been investigated.
-        concludePresidentialActions();
+        Player playerToInvestigate = investigationHelper(username);
+        playerToInvestigate.investigate(); // sets a flag that this player has been investigated.
+        concludeBoardActions();
+        return investigationReturner(playerToInvestigate);
+    }
 
-        if (getPlayer(username).isFascist()) {
+    protected Identity investigationReturner(Player playerInvestigated){
+        if (playerInvestigated.isFascist()) {
             return Identity.FASCIST;
         } else {
             return Identity.LIBERAL;
         }
+    }
+
+    protected Player investigationHelper(String username){
+        Player playerToInvestigate = getPlayer(username);
+        if (!hasPlayer(username)) {
+            throw new IllegalArgumentException("Player " + username + " does not exist.");
+        } else if (!playerToInvestigate.isAlive()) {
+            throw new IllegalArgumentException("Cannot investigate a dead player (" + username + ").");
+        } else if (playerToInvestigate.hasBeenInvestigated()) {
+            throw new IllegalArgumentException("Cannot investigate a player twice (" + username + ").");
+        }
+
+        target = username;
+        return playerToInvestigate;
     }
 
     /**
@@ -954,22 +1004,32 @@ public class SecretHitlerGame implements Serializable {
     public void executePlayer(String username) {
         if (state != GameState.PRESIDENTIAL_POWER_EXECUTION) {
             throw new IllegalStateException("Cannot execute a player when the power is not active.");
-        } else if (!hasPlayer(username)) {
-            throw new IllegalArgumentException("Player " + username + " does not exist.");
         }
 
+        playerValidation(username);
         Player playerToKill = getPlayer(username);
         target = username;
-        if (!playerToKill.isAlive()) {
-            throw new IllegalArgumentException("Cannot execute " + username + " because they are not alive.");
-        }
 
         playerToKill.kill();
         if (playerToKill.isHitler()) { // game ends and liberals win.
             this.lastState = this.state;
             state = GameState.LIBERAL_VICTORY_EXECUTION;
         } else {
-            concludePresidentialActions();
+            concludeBoardActions();
+        }
+    }
+
+    /**
+     * Validates if a certain player is in the game or not.
+     */
+    protected void playerValidation(String username){
+         if (!hasPlayer(username)) {
+            throw new IllegalArgumentException("Player " + username + " does not exist.");
+        }
+
+        Player playerToKill = getPlayer(username);
+        if (!playerToKill.isAlive()) {
+            throw new IllegalArgumentException("Operation failed as " + username + " are not alive.");
         }
     }
 
@@ -1004,9 +1064,72 @@ public class SecretHitlerGame implements Serializable {
         }
 
         electedPresident = username;
-        concludePresidentialActions();
+        concludeBoardActions();
     }
 
-    // </editor-fold>
+    public Identity acceptDenyBuggingChoice(boolean choice){
+        throw new IllegalArgumentException("Bugging is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void selectPlayerToBug(String username){
+        throw new IllegalArgumentException("Bugging is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public Identity getBuggingIdentity(){
+        throw new IllegalArgumentException("Bugging is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void assassinatePlayer(String name, String toKill) {
+        throw new IllegalArgumentException("Assassination is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void useAnarchistPower(String name){
+        throw new IllegalArgumentException("Using anarchist's power is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void policyRemovalSelection(String username, int index){
+        throw new IllegalArgumentException("Removing policy is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void registerRadicalisationChoice(String curPlayer, String username) {
+        throw new IllegalArgumentException("Radicalisation is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void acceptDenyRadicalisation(String curPlayer, boolean choice){
+        throw new IllegalArgumentException("Radicalisation accept/deny is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void callForMonarchistElection(String name, String candidate){
+        throw new IllegalArgumentException("Call for monarchist election is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public void nominateMonarchistsOpposition(String name, String candidate){
+        throw new IllegalArgumentException("Nominating for opposition in monarchist election is " +
+                "not allowed without playing the expansion.");
+    }
+
+    public String getAnarchist(){
+        throw new IllegalArgumentException("Anarchist is not" +
+                " available without playing the expansion.");
+    }
+
+    public String getMonarchist(){
+        throw new IllegalArgumentException("Monarchist is not" +
+                " available without playing the expansion.");
+    }
+
+    public boolean isExpansionGame(){
+        return false;
+    }
+        // </editor-fold>
 
 }

@@ -16,12 +16,30 @@ export enum LobbyState {
   LIBERAL_VICTORY_EXECUTION = "LIBERAL_VICTORY_EXECUTION", // Liberal Party won through executing Hitler.
   FASCIST_VICTORY_POLICY = "FASCIST_VICTORY_POLICY", // Fascist Party won through enacting Fascist policies.
   FASCIST_VICTORY_ELECTION = "FASCIST_VICTORY_ELECTION", // Fascist Party won by successfully electing Hitler chancellor.
+  COMMUNIST_VICTORY_POLICY = "COMMUNIST_VICTORY_POLICY", // Communist Party won through enacting Communist policies.
+  COMMUNIST_VICTORY_EXECUTION = "COMMUNIST_VICTORY_EXECUTION", // Communist Party won through executing Hitler.
+  CHANCELLOR_POWER_BUGGING = "CHANCELLOR_POWER_BUGGING", // Chancellor accepts or rejects the choice to bug a player by the President.
+  PP_BUGGING = "PRESIDENTIAL_POWER_BUGGING", // President may choose a player to bug.
+  PP_GET_BUGGING_IDENTITY = "PRESIDENTIAL_POWER_GET_BUGGING_IDENTITY", // Presidents views the identity of the bugged player if the choice was accepted by the chancellor.
+  CP_RADICALISATION = "COMMUNIST_POWER_RADICALISATION", // One of the communist chooses a player to radicalise.
+  CP_RADICALISATION_ACCEPT_DENY = "COMMUNIST_POWER_RADICALISATION_ACCEPT_DENY", // The fellow communist accept or deny the selection of player to radicalise.
+  ANARCHIST_POWER_ASSASSINATION = "ANARCHIST_POWER_ASSASSINATION", // The anacrhist is deciding a player to assassinate.
+  POLICY_REMOVAL = "POLICY_REMOVAL", // The president and the chancellor select which policy to remove from the game.
+  FIVE_YEAR_PLAN = "FIVE_YEAR_PLAN", // Upto 2 communists and 1 liberal policy added from discard to draw pile. Draw pile is shuffled.
+  CONGRESS = "CONGRESS", // The new communists come to know about other communists.
+  PP_CONFESSION = "PRESIDENTIAL_POWER_CONFESSION", // President is choosing a player who will be executed and his membership will be revealed.
+  MONARCHIST_POWER_ELECTION = "MONARCHIST_POWER_ELECTION", // Monarchist chooses if he wants to reveal himself to use this special power of election. If yes, he also nominates a chancellor.
+  MONARCHIST_OPPOSITION_NOMINATION = "MONARCHIST_OPPOSITION_NOMINATION", // The President nominates a candidate against monarchist's candidate.
+  MONARCHIST_ELECTION_VOTING = "MONARCHIST_ELECTION_VOTING", // Voting during monarchist's special election is taking place.
+  MONARCHIST_ELECTION_TIE = "MONARCHIST_ELECTION_TIE", // Monarchist selects the chancellor in case of a tie.
 }
 
 export type PlayerState = {
   id?: Role;
   alive: boolean;
   investigated: boolean;
+  isRoleRevealed: boolean;
+  knowsCommunists: boolean;
 };
 
 export type GameState = {
@@ -38,6 +56,8 @@ export type GameState = {
   userVotes: Record<string, boolean>;
   liberalPolicies: number;
   fascistPolicies: number;
+  communistPolicies: number;
+  isExpansionGame: boolean;
   drawSize: number;
   discardSize: number;
   // TODO: Make GameState type more complex, correlating
@@ -55,4 +75,24 @@ export type GameState = {
   usernames?: string[];
   /** Maps from usernames to icon keys */
   icon: Record<string, string>;
+  doesAnarchistKnowCommunists: boolean;
+  vetoList?: string[];
+  vetoRemaining: number;
+  numFascist: number;
+  numLiberal: number;
+  numCommunist: number;
+  hasAnarchist: boolean;
+  hasMonarchist: boolean;
+  communist1: string;
+  communist2: string;
+  radicalisationSuccess: boolean;
+  policyRemovalMap?: Record<string, PolicyType>; 
+  policyRemoved: PolicyType | undefined;
+  anarchist: string;
+  monarchist: string;
+  monarchistCandidate: string;
+  opposition: string;
+  usedAnarchistPower: boolean;
+  antiPolicyPlace: number[];
+  policyRemovedPlace: number[];
 };

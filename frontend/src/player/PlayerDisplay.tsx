@@ -14,6 +14,10 @@ import {
   STATE_POST_LEGISLATIVE,
   STATE_LEGISLATIVE_CHANCELLOR,
   STATE_CHANCELLOR_VOTING,
+  STATE_PP_BUGGING,
+  STATE_PP_GET_BUGGING_IDENTITY,
+  STATE_CHANCELLOR_POWER_BUGGING,
+  STATE_PP_CONFESSION,
 } from "../constants";
 import "./PlayerDisplay.css";
 import { GameState, Role } from "../types";
@@ -60,6 +64,68 @@ export const DISABLE_INVESTIGATED_PLAYERS = (
     return "SEARCHED";
   }
   return "";
+};
+
+export const DISABLE_PLAYERS_FOR_BUGGINNG = (
+  name: string,
+  gameState: GameState
+) => {
+  if (!gameState.players[name].alive) {
+    return "EXECUTED";
+  } else if(gameState.chancellor === name){
+    return "CHANCELLOR";
+  } else if(gameState.president === name){
+    return "PRESIDENT";
+  } else if (gameState.players[name].investigated) {
+    return "SEARCHED";
+  } else if (gameState.vetoList !== undefined 
+    && gameState.vetoList.includes(name)) {
+    return "VETOED";
+  }
+  return "";
+};
+
+export const DISABLE_PLAYERS_FOR_RADICALISATION = (
+  name: string,
+  gameState: GameState
+) => {
+  if (!gameState.players[name].alive) {
+    return "EXECUTED";
+  } else if (gameState.players[name].id === Role.ANARCHIST) {
+      return "ANARCHIST";
+  } else if (gameState.players[name].id === Role.COMMUNIST) {
+    return "COMMUNIST";
+  } else if (gameState.vetoList !== undefined 
+    && gameState.vetoList.includes(name)) {
+    return "VETOED";
+  }
+  return "";
+};
+
+export const DISABLE_PLAYERS_FOR_MONARCHIST_ELECTION = (
+name: string,
+gameState: GameState
+) => {
+  if (!gameState.players[name].alive) {
+    return "EXECUTED";
+  } else if (name === gameState.president) {
+      return "PRESIDENT";
+  }
+  return "";
+};
+
+export const DISABLE_PLAYERS_FOR_MONARCHIST_OPPOSITION = (
+  name: string,
+  gameState: GameState
+  ) => {
+    if (!gameState.players[name].alive) {
+      return "EXECUTED";
+    } else if (name === gameState.monarchist) {
+      return "MONARCHIST";
+    } else if (name === gameState.targetUser) {
+      return "NOMINATED";
+    }
+    return "";
 };
 
 /**
@@ -175,9 +241,13 @@ export default function PlayerDisplay(
       case STATE_PP_EXECUTION:
       case STATE_PP_INVESTIGATE:
       case STATE_POST_LEGISLATIVE:
+      case STATE_PP_BUGGING:
+      case STATE_PP_GET_BUGGING_IDENTITY:
+      case STATE_PP_CONFESSION:
         busyPlayers.add(game.president);
         break;
       case STATE_LEGISLATIVE_CHANCELLOR:
+      case STATE_CHANCELLOR_POWER_BUGGING:
         busyPlayers.add(game[PARAM_CHANCELLOR]);
         break;
       case STATE_CHANCELLOR_VOTING:
@@ -207,24 +277,29 @@ export default function PlayerDisplay(
     gameState: GameState,
     playerName: string
   ): boolean => {
-    const myRole = gameState.players[props.user].id;
-    const otherRole = gameState.players[playerName].id;
+    const myPlayer = gameState.players[props.user];
+    const otherPlayer = gameState.players[playerName];
+    const myRole = myPlayer.id;
+    const otherRole = otherPlayer.id;
+    
 
     if (otherRole === undefined) {
       return false;
-    }
-    if (isVictoryState(gameState.state)) {
+    } else if (isVictoryState(gameState.state) || otherPlayer.isRoleRevealed) {
       return true;
-    }
-    if (
-      myRole === Role.FASCIST ||
-      (myRole === Role.HITLER && doesHitlerKnowFascists(gameState))
-    ) {
-      // Hide liberal roles, because they can be redundant otherwise.
-      return otherRole !== Role.LIBERAL;
+    } else if(props.user === playerName){
+      return true;
+    } else if (myRole === Role.FASCIST){
+      return otherRole === Role.FASCIST || otherRole === Role.HITLER || otherRole === Role.MONARCHIST;
+    } else if (myRole === Role.HITLER && doesHitlerKnowFascists(gameState)){
+      return otherRole === Role.FASCIST;
+    } else if (myRole === Role.COMMUNIST && myPlayer.knowsCommunists){
+      return otherRole === Role.COMMUNIST || otherRole === Role.ANARCHIST;
+    } else if(myRole === Role.ANARCHIST && gameState.doesAnarchistKnowCommunists){
+      return otherRole === Role.COMMUNIST;
     } else {
-      return otherRole !== undefined;
-    }
+      return false; // Liberals and Monarchists
+    } 
   };
 
   /**
@@ -263,7 +338,8 @@ export default function PlayerDisplay(
         const playerData = players[playerName];
 
         let roleText = "";
-        if (playerName === props.gameState[PARAM_CHANCELLOR]) {
+        let labelId = "player-display-label";
+        if (playerName === props.gameState.chancellor) {
           roleText = "CHANCELLOR";
         } else if (playerName === props.gameState.president) {
           roleText = "PRESIDENT";
@@ -277,7 +353,7 @@ export default function PlayerDisplay(
 
         let label;
         if (props.showLabels) {
-          label = <p id="player-display-label">{roleText}</p>;
+          label = <p id={labelId}>{roleText}</p>;
         }
 
         const isSelected = props.selection === playerName;

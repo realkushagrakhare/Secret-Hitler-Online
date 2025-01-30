@@ -9,6 +9,7 @@
     --textColorOnDark: #bbbbbb;
     --textColorHighlight: var(--headerFill);
     --textColorLiberal: #5a9ba6;
+    --textColorCommunist: rgb(128, 0, 32);
     --textColorWhite: #ffffff;
     --textShadowed: #141414;
     --buttonFill: var(--headerFill);
@@ -18,6 +19,7 @@
     --buttonDisabledShadowFill: #766058;
 
     --buttonAltFill: var(--textColorLiberal);
+    --buttonCommunistFill: var(--textColorCommunist);
     --buttonAltHoverFill: #7abcca;
     --buttonAltShadowFill: #386F8B;
 

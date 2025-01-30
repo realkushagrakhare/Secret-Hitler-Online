@@ -8,6 +8,7 @@ import { PolicyType, SendWSCommand, WSCommandType } from "../types";
 
 type PresidentLegislativePromptProps = {
   policyOptions: PolicyType[];
+  isPresidentLegislative: boolean;
   sendWSCommand: SendWSCommand;
 };
 
@@ -40,21 +41,31 @@ class PresidentLegislativePrompt extends Component<
     }, SERVER_TIMEOUT);
 
     // Contact the server using provided method.
-    this.props.sendWSCommand({
-      command: WSCommandType.REGISTER_PRESIDENT_CHOICE,
-      choice: this.state.selection,
-    });
+    if(this.props.isPresidentLegislative){
+      this.props.sendWSCommand({
+        command: WSCommandType.REGISTER_PRESIDENT_CHOICE,
+        choice: this.state.selection,
+      });
+    } else {
+      this.props.sendWSCommand({
+        command: WSCommandType.REGISTER_POLICY_REMOVAL_CHOICE,
+        choice: this.state.selection,
+      });
+    }
   }
 
   // noinspection DuplicatedCode
   render() {
+    let label = this.props.isPresidentLegislative ? "LEGISLATIVE SESSION" : "POLICY REMOVAL";
+    let headerText = this.props.isPresidentLegislative 
+    ? "Choose a policy to discard. The remaining policies are given to the chancellor."
+    : "If the president and the chancellor pick the same policy, it will removed from the game entirely."
+    let buttonText = this.props.isPresidentLegislative ? "DISCARD" : "REMOVE";
     return (
       <ButtonPrompt
-        label={"LEGISLATIVE SESSION"}
-        headerText={
-          "Choose a policy to discard. The remaining policies are given to the chancellor."
-        }
-        buttonText={"DISCARD"}
+        label={label}
+        headerText={headerText}
+        buttonText={buttonText}
         buttonOnClick={this.onButtonClick}
         buttonDisabled={
           this.state.selection === undefined || this.state.waitingForServer

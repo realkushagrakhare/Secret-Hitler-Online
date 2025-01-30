@@ -38,6 +38,22 @@ public class Deck implements Serializable {
     }
 
     /**
+     * Removes the Policy at a particular index in the deck.
+     * @throws IndexOutOfBoundsException if index is not in the range.
+     * @modifies this
+     * @effects removes the Policy from the deck.
+     * @return the Policy that was at that index in the deck.
+     */
+    public Policy remove(int index) {
+        if (isEmpty()) {
+            throw new IndexOutOfBoundsException("Cannot remove a card from an empty deck.");
+        } else if (index < 0 || index >= deck.size()) {
+            throw new IndexOutOfBoundsException("Can only from a card from the deck if lies in within the range.");
+        }
+        return deck.remove(index);
+    }
+
+    /**
      * Adds the given Policy to the top of the deck.
      * @param newPolicy the Policy to add to the deck.
      * @modifies this
@@ -75,5 +91,9 @@ public class Deck implements Serializable {
      */
     public void shuffle() {
         Collections.shuffle(deck);
+    }
+
+    public List<Policy> getPolicies() {
+        return deck;
     }
 }

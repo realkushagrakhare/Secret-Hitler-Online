@@ -10,6 +10,9 @@ import PlayerBase from "../assets/player-base.png"
 import IconFascist from "../assets/player-icon-fascist.png";
 import IconHitler from "../assets/player-icon-hitler.png";
 import IconLiberal from "../assets/player-icon-liberal.png";
+import IconCommunist from "../assets/player-icon-communist.png";
+import IconMonarchist from "../assets/player-icon-monarchist.png";
+import IconAnarchist from "../assets/player-icon-anarchist.png";
 
 import IconBusy from "../assets/player-icon-busy.png";
 
@@ -20,6 +23,9 @@ import portraits, {portraitsAltText} from "../assets";
 const LIBERAL = "LIBERAL";
 const FASCIST = "FASCIST";
 const HITLER = "HITLER";
+const ANARCHIST = "ANARCHIST";
+const MONARCHIST = "MONARCHIST";
+const COMMUNIST = "COMMUNIST";
 
 /**
  * A visual representation of a player, including their name and (optionally) their role.
@@ -44,6 +50,12 @@ class Player extends Component {
                 return IconLiberal;
             case FASCIST:
                 return IconFascist;
+            case COMMUNIST:
+                return IconCommunist;
+            case ANARCHIST:
+                return IconAnarchist;
+            case MONARCHIST:
+                return IconMonarchist;
             case HITLER:
             default:
                 return IconHitler;
@@ -66,6 +78,8 @@ class Player extends Component {
     getRoleClass() {
         if(this.props.role === LIBERAL) {
             return " liberal-text";
+        } else if(this.props.role === COMMUNIST || this.props.role === ANARCHIST){
+            return " communist-text";
         } else {
             return "";
         }
@@ -145,20 +159,21 @@ class Player extends Component {
 
         let identity_components;
         // Conditionally rendered so information is not visible in Inspector view
+                    
         if (this.props.showRole) {
-            identity_components = <>
-                    <img id="player-identity-icon"
-                         className={this.getClassName()}
-                         src={this.getIcon()}
-                         alt={this.getAltText()}
-                    />
-
-                    <p id="player-identity-label"
-                       className={this.getRoleClass() + this.getClassName() + " force-update"}
-                    >
-                        {this.capitalizeFirstOnly(this.props.role)}
-                    </p>
-                </>
+            identity_components = 
+            <>
+                <img id="player-identity-icon"
+                    className={this.getClassName()}
+                    src={this.getIcon()}
+                    alt={this.getAltText()}
+                />
+                <p id="player-identity-label"
+                className={this.getRoleClass() + this.getClassName() + " force-update"}
+                >
+                    {this.capitalizeFirstOnly(this.props.role)}
+                </p>
+            </>
         }
 
         return (
@@ -199,7 +214,7 @@ class Player extends Component {
                          mode="multi"
                          forceSingleModeWidth={false}
                          alignVertWithFlexbox={true}
-                         throttle={1000}
+                         throttle={10000}
                 >
                     {this.props.name}
                 </Textfit>

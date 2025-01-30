@@ -66,7 +66,7 @@
 #player-identity-icon {
     position:absolute;
     top: 75%;
-    left: 8%;
+    left: 1%;
     width: 28%;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -92,12 +92,15 @@
 
 #player-identity-label {
     position:absolute;
-    top: 69%;
-    left: 36%;
-    width: 50%;
+    top: 73%;
+    left: 20%;
+    width: 76%;
     height: 12%;
     /*noinspection CssInvalidFunction*/
-    font-size: min(2.3vh, 3vmin);
+    /*font-size: min(2.3vh, 3vmin); Changing height to see if communist fits */
+    font-size: min(1.8vh, 2vmin);
+    justify-content: center;
+    display: flex;
     color: var(--textColorHighlight);
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -108,6 +111,10 @@
 
 #player-identity-label.liberal-text {
     color: var(--textColorLiberal);
+}
+
+#player-idenity-label.communist-text {
+    color: var(--textColorCommunist);
 }
 
 #player-disabled-label {

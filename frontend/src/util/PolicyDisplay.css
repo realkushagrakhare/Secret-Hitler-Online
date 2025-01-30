@@ -1,5 +1,19 @@
 @import '../variables.css';
 
+#legislative-policy-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.policy-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
 #legislative-policy {
     width: 20vmin;
     margin: 10px;

@@ -9,9 +9,10 @@ import java.io.Serializable;
 public class Player implements Serializable {
 
     final private String username;
-    private Identity id;
+    protected Identity id;
     private boolean isAlive;
     private boolean investigated;
+    private boolean isRoleRevealed;
 
     private boolean isCPU = false;
 
@@ -70,10 +71,39 @@ public class Player implements Serializable {
 
     public boolean hasBeenInvestigated() { return this.investigated; }
 
+    public void revealIdentity() { isRoleRevealed = true; }
+
+    public boolean hasRevealed() { return isRoleRevealed; }
+
+    public boolean isAnarchist() {
+        throw new UnsupportedOperationException(
+                "Checking for anarchist is not allowed when playing without the expansion and "
+                + "in more than 10 player count.");
+    }
+
+    public boolean isMonarchist() {
+        throw new UnsupportedOperationException(
+                "Checking for monarchist is not allowed when playing without the expansion and "
+                        + "in more than 10 player count.");
+    }
+
     /**
      * @return true if the player is fascist or hitler.
      */
     public boolean isFascist() {
         return this.id.equals(Identity.HITLER) || this.id.equals(Identity.FASCIST);
+    }
+
+    public boolean isCommunist() { throw new UnsupportedOperationException(
+            "Checking for communist is not allowed when playing without the expansion.");
+    }
+
+    public void recognizeCommunists() {
+        throw new UnsupportedOperationException(
+                "Recognizing communists is allowed when playing with the expansion.");
+    }
+
+    public boolean knowsCommunists(){
+        return false;
     }
 }

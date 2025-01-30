@@ -12,7 +12,7 @@ import "./VotingPrompt.css";
 import YesVote from "../assets/vote-yes.png";
 import NoVote from "../assets/vote-no.png";
 import Player from "../player/Player";
-import { GameState, Role, SendWSCommand, WSCommandType } from "../types";
+import { GameState, LobbyState, Role, SendWSCommand, WSCommandType } from "../types";
 
 type VotingPromptProps = {
   gameState: GameState;
@@ -66,6 +66,37 @@ class VotingPrompt extends Component<VotingPromptProps, VotingPromptState> {
     return false;
   }
 
+  shouldShowRole = (
+      gameState: GameState,
+      playerName: string
+  ): boolean => {
+    const myPlayer = gameState.players[this.props.user];
+    const otherPlayer = gameState.players[playerName];
+    const myRole = myPlayer.id;
+    const otherRole = otherPlayer.id;
+    
+
+    if (otherRole === undefined) {
+      return false;
+    } else if(this.props.user === playerName){
+      return true;
+    } else if (myRole === Role.FASCIST){
+      return otherRole === Role.FASCIST || otherRole === Role.HITLER || otherRole === Role.MONARCHIST;
+    } else if (myRole === Role.HITLER && this.doesHitlerKnowFascists(gameState)){
+      return otherRole === Role.FASCIST;
+    } else if (myRole === Role.COMMUNIST && myPlayer.knowsCommunists){
+      return otherRole === Role.COMMUNIST || otherRole === Role.ANARCHIST;
+    } else if(myRole === Role.ANARCHIST && gameState.doesAnarchistKnowCommunists){
+      return otherRole === Role.COMMUNIST;
+    } else {
+      return false; // Liberals and Monarchists
+    } 
+  };
+
+  doesHitlerKnowFascists = (gameState: GameState): boolean => {
+    return gameState.playerOrder.length <= 6;
+  };
+
   /**
    * Called when the confirm button is clicked.
    * @effects Attempts to send the server a command with the player's vote, and locks access to the button
@@ -90,8 +121,12 @@ class VotingPrompt extends Component<VotingPromptProps, VotingPromptState> {
   }
 
   render() {
+    if(this.props.gameState.state === LobbyState.MONARCHIST_ELECTION_TIE ||
+      this.props.gameState.state === LobbyState.MONARCHIST_ELECTION_VOTING){
+        return this.renderForMonarchistElection();
+    }
     let chancellorName = this.props.gameState[PARAM_CHANCELLOR];
-    let shouldShowChancellorRole = this.shouldChancellorRoleBeShown();
+    let shouldShowChancellorRole = this.shouldShowRole(this.props.gameState, chancellorName);
     let chancellorRole =
       this.props.gameState[PARAM_PLAYERS][chancellorName][PLAYER_IDENTITY];
     let presidentName = this.props.gameState[PARAM_PRESIDENT];
@@ -170,6 +205,95 @@ class VotingPrompt extends Component<VotingPromptProps, VotingPromptState> {
       </ButtonPrompt>
     );
   }
+
+  renderForMonarchistElection(){
+    let candidateName = this.props.gameState.monarchistCandidate;
+    let shouldShowCandidateRole = this.shouldShowRole(this.props.gameState, candidateName);
+    let candidateRole =
+      this.props.gameState[PARAM_PLAYERS][candidateName][PLAYER_IDENTITY];
+
+    let oppositionName = this.props.gameState.opposition;
+    let shouldShowOppositionRole = this.shouldShowRole(this.props.gameState, oppositionName);
+    let oppositionRole =
+      this.props.gameState[PARAM_PLAYERS][oppositionName][PLAYER_IDENTITY];
+
+    let tieText = this.props.gameState.state === LobbyState.MONARCHIST_ELECTION_VOTING 
+                  ? "If this vote is a tie, Monarchist gets the final say."
+                  : "Since the vote was a tie, Monarchist gets the final say.";
+    return (
+      <ButtonPrompt
+        label={"VOTING"}
+        renderHeader={() => {
+          return (
+            <>
+              <Player
+                id={"voting-player"}
+                name={candidateName}
+                showRole={shouldShowCandidateRole}
+                role={candidateRole}
+                style={{ marginRight: "10px" }}
+                icon={this.props.gameState.icon[candidateName]}
+              />
+              <Player
+                id={"voting-player"}
+                name={oppositionName}
+                showRole={shouldShowOppositionRole}
+                role={oppositionRole}
+                style={{ marginRight: "10px" }}
+                icon={this.props.gameState.icon[oppositionName]}
+              />
+
+              <p className="left-align">
+                {this.props.gameState.monarchist + " has nominated " + candidateName + " and " 
+                + this.props.gameState.president + " has nominated " + oppositionName +"."}
+              </p>
+              <p className="left-align">
+                {
+                  "Vote Yes for " + candidateName + " and No for " + oppositionName + ". Whoever wins, " + 
+                  "Monarchist will be the President."
+                }
+              </p>
+              <p className="highlight left-align">
+                {tieText}
+              </p>
+              <p className="highlight left-align">
+                {
+                  "Fascists will win if Hitler is successfully voted in as chancellor!"
+                }
+              </p>
+            </>
+          );
+        }}
+        buttonDisabled={
+          this.state.selection === undefined || this.state.waitingForServer
+        }
+        buttonOnClick={this.onButtonClick}
+      >
+        <div id={"voting-card-container"}>
+          <img
+            id={"voting-card"}
+            className={
+              "selectable " +
+              (this.state.selection === "yes" ? "selected " : "")
+            } /*Determines if this should be selected.*/
+            src={YesVote}
+            alt={"Ja! (Yes)"}
+            onClick={() => this.setState({ selection: "yes" })}
+          />
+          <img
+            id={"voting-card"}
+            className={
+              "selectable " + (this.state.selection === "no" ? "selected " : "")
+            }
+            src={NoVote}
+            alt={"Nein (No)"}
+            onClick={() => this.setState({ selection: "no" })}
+          />
+        </div>
+      </ButtonPrompt>
+    );
+  }
 }
+
 
 export default VotingPrompt;

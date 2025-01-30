@@ -60,8 +60,6 @@ export const unlockedPortraits: string[] = [
   "p8",
   "p9",
   "p10",
-];
-export const lockedPortraits: string[] = [
   "p11",
   "p12",
   "p13",
@@ -72,6 +70,8 @@ export const lockedPortraits: string[] = [
   "p18",
   "p19",
   "p20",
+];
+export const lockedPortraits: string[] = [
 ];
 
 export const portraitsAltText: Record<string, string> = {

@@ -44,14 +44,19 @@ public class SecretHitlerServer {
     // The type of the packet tells the client how to parse the contents.
     public static final String PARAM_PACKET_TYPE = "type";
     public static final String PACKET_INVESTIGATION = "investigation";
+    public static final String PACKET_BUGGING = "bugging";
     public static final String PACKET_GAME_STATE = "game";
     public static final String PACKET_LOBBY = "lobby";
     public static final String PACKET_OK = "ok"; // general response packet sent after any successful command.
     public static final String PACKET_PONG = "pong"; // response to pings.
 
     public static final String PARAM_INVESTIGATION = "investigation";
+    public static final String PARAM_BUGGED = "bugged";
+    public static final String PARAM_ACCEPTED = "accepted";
+
     public static final String FASCIST = "FASCIST";
     public static final String LIBERAL = "LIBERAL";
+    public static final String COMMUNIST = "COMMUNIST";
 
     // These are the commands that can be passed via a websocket connection.
     public static final String COMMAND_PING = "ping";
@@ -72,6 +77,20 @@ public class SecretHitlerServer {
     public static final String COMMAND_REGISTER_PEEK = "register-peek";
 
     public static final String COMMAND_END_TERM = "end-term";
+
+
+    public static final String COMMAND_START_COMMUNIST_EXPANSION_GAME = "start-communist-expansion-game";
+    public static final String COMMAND_REGISTER_BUGGING_CHOICE = "register-bugging-choice";
+    public static final String COMMAND_ACCEPT_DENY_BUGGING = "accept-deny-bugging";
+    public static final String COMMAND_GET_BUGGING_IDENTITY = "get-bugging-identity";
+    public static final String COMMAND_REGISTER_CONFESSION = "register-confession";
+    public static final String COMMAND_REGISTER_RADICALISATION = "register-radicalisation";
+    public static final String COMMAND_ACCEPT_DENY_RADICALISATION = "accept-deny--radicalisation";
+    public static final String COMMAND_REGISTER_POLICY_REMOVAL_CHOICE = "register-policy-removal-choice";
+    public static final String COMMAND_REGISTER_MONARCHIST_CHOICE = "register-monarchist-choice";
+    public static final String COMMAND_REGISTER_OPPOSITION_CHOICE = "register-opposition-choice";
+    public static final String COMMAND_REGISTER_ANARCHIST_POWER = "register-anarchist-power";
+    public static final String COMMAND_REGISTER_ASSASSINATION = "register-assassination";
 
     private static final String CODE_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTWXYZ"; // u,v characters can look ambiguous
     private static final int CODE_LENGTH = 4;
@@ -166,6 +185,7 @@ public class SecretHitlerServer {
                 }
                 // If there are active lobbies, store a backup of the game.
                 if (!codeToLobby.isEmpty() && hasLobbyChanged) {
+                    // add this back after testing
                     storeDatabaseBackup();
                     hasLobbyChanged = false;
                 }
@@ -570,6 +590,8 @@ public class SecretHitlerServer {
     private static void onWebSocketMessage(WsMessageContext ctx) {
         // Parse message to JSON object.
         JSONObject message = new JSONObject(ctx.message());
+        Identity id;
+        JSONObject obj;
 
         if (message.getString(PARAM_LOBBY) == null
                 || message.getString(PARAM_NAME) == null
@@ -612,10 +634,15 @@ public class SecretHitlerServer {
                         JSONObject msg = new JSONObject();
                         msg.put(PARAM_PACKET_TYPE, PACKET_PONG);
                         ctx.send(msg.toString());
+                        logger.debug("RECEIVED PING from: {}", name);
                         break;
 
                     case COMMAND_START_GAME: // Starts the game.
                         lobby.startNewGame();
+                        break;
+
+                    case COMMAND_START_COMMUNIST_EXPANSION_GAME: // Starts communist expansion game.
+                        lobby.startNewCommunistExpansionGame();
                         break;
 
                     case COMMAND_GET_STATE: // Requests the updated state of the game.
@@ -667,15 +694,11 @@ public class SecretHitlerServer {
 
                     case COMMAND_GET_INVESTIGATION: // params: PARAM_TARGET (String)
                         verifyIsPresident(name, lobby);
-                        Identity id = lobby.game().investigatePlayer(message.getString(PARAM_TARGET));
+                        id = lobby.game().investigatePlayer(message.getString(PARAM_TARGET));
                         // Construct and send a JSONObject.
-                        JSONObject obj = new JSONObject();
+                        obj = new JSONObject();
                         obj.put(PARAM_PACKET_TYPE, PACKET_INVESTIGATION);
-                        if (id == Identity.FASCIST) {
-                            obj.put(PARAM_INVESTIGATION, FASCIST);
-                        } else {
-                            obj.put(PARAM_INVESTIGATION, LIBERAL);
-                        }
+                        obj.put(PARAM_INVESTIGATION, IdentityToString(id));
                         obj.put(PARAM_TARGET, message.getString(PARAM_TARGET));
                         ctx.send(obj.toString());
                         break;
@@ -686,13 +709,80 @@ public class SecretHitlerServer {
                         break;
 
                     case COMMAND_END_TERM:
-                        verifyIsPresident(name, lobby);
+                        verifyIsPresidentOrAnarchist(name, lobby);
                         lobby.game().endPresidentialTerm();
                         break;
 
                     case COMMAND_SELECT_ICON:
                         String iconId = message.getString(PARAM_ICON);
                         lobby.trySetUserIcon(iconId, ctx);
+                        break;
+
+                    case COMMAND_REGISTER_BUGGING_CHOICE:
+                        verifyIsPresident(name, lobby);
+                        lobby.game().selectPlayerToBug(message.getString(PARAM_TARGET));
+                        break;
+
+                    case COMMAND_ACCEPT_DENY_BUGGING:
+                        logger.debug("COMMAND_ACCEPT_DENY_BUGGING " + lobby.game().getCurrentPresident() + " "
+                        + lobby.game().getCurrentChancellor() + " " + name);
+                        verifyIsChancellor(name, lobby);
+                        id = lobby.game().acceptDenyBuggingChoice(message.getBoolean(PARAM_VETO));
+                        // Construct and send a JSONObject.
+                        obj = new JSONObject();
+                        obj.put(PARAM_PACKET_TYPE, PACKET_BUGGING);
+                        obj.put(PARAM_ACCEPTED, id != Identity.UNASSIGNED);
+                        obj.put(PARAM_BUGGED, IdentityToString(id));
+                        obj.put(PARAM_TARGET, lobby.game().getTarget());
+                        ctx.send(obj.toString());
+                        break;
+
+                    case COMMAND_GET_BUGGING_IDENTITY:
+                        verifyIsPresident(name, lobby);
+                        id = lobby.game().getBuggingIdentity();
+                        // Construct and send a JSONObject.
+                        obj = new JSONObject();
+                        obj.put(PARAM_PACKET_TYPE, PACKET_BUGGING);
+                        obj.put(PARAM_ACCEPTED, true);
+                        obj.put(PARAM_BUGGED, IdentityToString(id));
+                        obj.put(PARAM_TARGET, lobby.game().getTarget());
+                        ctx.send(obj.toString());
+                        break;
+
+                    case COMMAND_REGISTER_RADICALISATION:
+                        lobby.game().registerRadicalisationChoice(name, message.getString(PARAM_TARGET));
+                        break;
+
+                    case COMMAND_ACCEPT_DENY_RADICALISATION:
+                        lobby.game().acceptDenyRadicalisation(name, message.getBoolean(PARAM_VETO));
+                        break;
+
+                    case COMMAND_REGISTER_POLICY_REMOVAL_CHOICE:
+                        lobby.game().policyRemovalSelection(name, message.getInt(PARAM_CHOICE));
+                        break;
+
+                    case COMMAND_REGISTER_MONARCHIST_CHOICE:
+                        String target = message.has(PARAM_TARGET) ? message.getString(PARAM_TARGET) : "";
+                        lobby.game().callForMonarchistElection(name, target);
+                        break;
+
+                    case COMMAND_REGISTER_OPPOSITION_CHOICE:
+                        verifyIsPresident(name, lobby);
+                        lobby.game().nominateMonarchistsOpposition(name, message.getString(PARAM_TARGET));
+
+                    case COMMAND_REGISTER_CONFESSION:
+                        verifyIsPresident(name, lobby);
+                        lobby.game().executePlayer(message.getString(PARAM_TARGET));
+                        break;
+
+                    case COMMAND_REGISTER_ANARCHIST_POWER:
+                        if(message.getBoolean(PARAM_VETO)) {
+                            lobby.game().useAnarchistPower(name);
+                        }
+                        break;
+
+                    case COMMAND_REGISTER_ASSASSINATION:
+                        lobby.game().assassinatePlayer(name, message.getString(PARAM_TARGET));
                         break;
 
                     default: // This is an invalid command.
@@ -722,6 +812,17 @@ public class SecretHitlerServer {
         hasLobbyChanged = true;
     }
 
+    private static String IdentityToString(Identity id){
+        if (id == Identity.FASCIST) {
+            return FASCIST;
+        } else if (id == Identity.COMMUNIST){
+            return COMMUNIST;
+        } else if(id == Identity.LIBERAL){
+            return LIBERAL;
+        }
+        return "";
+    }
+
     // TODO: This is bad. This is bad code practice. Exceptions should not be
     // used for control flow.
 
@@ -748,6 +849,13 @@ public class SecretHitlerServer {
     private static void verifyIsChancellor(String name, Lobby lobby) {
         if (!lobby.game().getCurrentChancellor().equals(name)) {
             throw new RuntimeException("The player '" + name + "' is not currently chancellor.");
+        }
+    }
+
+    private static void verifyIsPresidentOrAnarchist(String name, Lobby lobby) {
+        if (!lobby.game().getCurrentPresident().equals(name) &&
+            !(lobby.game().isExpansionGame() && lobby.game().getAnarchist().equals(name))){
+            throw new RuntimeException("The player '" + name + "' is not currently president/anarchist.");
         }
     }
 

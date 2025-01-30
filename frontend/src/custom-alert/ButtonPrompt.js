@@ -21,6 +21,7 @@ class ButtonPrompt extends Component {
                 {this.props.children}
                 {this.props.renderFooter(this)}
                 {this.props.renderButton(this)}
+                {this.props.secondButtonExists && this.props.renderSecondButton(this)}
             </div>
         );
     }
@@ -58,6 +59,25 @@ ButtonPrompt.defaultProps = {
         );
     },
 
+    secondButtonText: "CANCEL",
+    secondButtonExists: false,
+    secondButtonDisabled: false,
+    secondButtonOnClick: () => {console.log("Second Button clicked.")},
+    renderSecondButton: (obj) => {
+        if (obj.props.secondButtonExists && obj.props.secondButtonOnClick) {
+            return (
+                <button
+                    id={"prompt-second-button"}
+                    disabled={obj.props.secondButtonDisabled}
+                    onClick={obj.props.secondButtonOnClick}
+                >
+                    {obj.props.secondButtonText}
+                </button>
+            );
+        }
+        return null; // Render nothing if second button props are not provided
+    },
+
 };
 
 ButtonPrompt.propTypes = {
@@ -75,7 +95,13 @@ ButtonPrompt.propTypes = {
     buttonText: PropTypes.string,
     buttonOnClick: PropTypes.func,
     buttonDisabled: PropTypes.bool,
-    renderButton: PropTypes.func
+    renderButton: PropTypes.func,
+
+    secondButtonText: PropTypes.string,
+    secondButtonOnClick: PropTypes.func,
+    secondButtonDisabled: PropTypes.bool,
+    renderSecondButton: PropTypes.func,
+    secondButtonExists: PropTypes.bool,
 };
 
 

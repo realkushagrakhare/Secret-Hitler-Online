@@ -3,6 +3,7 @@ package server.util;
 import game.CpuPlayer;
 import game.GameState;
 import game.SecretHitlerGame;
+import game.CommunistExpansionGame;
 import io.javalin.websocket.WsContext;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -166,7 +167,7 @@ public class Lobby implements Serializable {
      *         {@code SecretHitlerGame.MAX_PLAYERS}.
      */
     synchronized public boolean isFull() {
-        return activeUsernames.size() >= SecretHitlerGame.MAX_PLAYERS;
+        return activeUsernames.size() >= CommunistExpansionGame.MAX_PLAYERS;
     }
 
     /**
@@ -522,6 +523,43 @@ public class Lobby implements Serializable {
         for (CpuPlayer cpu : cpuPlayers) {
             cpu.initialize(game);
         }
+    }
+
+    /**
+     * Starts a new CommunistExpansionGame with the connected users as players.
+     *
+     * @throws RuntimeException if there are an insufficient number of players to
+     *                          start a game, or if the lobby is in a game
+     *                          ({@code isInGame() == true}). Also throws exception
+     *                          if not all players have selected an icon.
+     * @modifies this
+     * @effects creates and stores a new CommunistExpansionGame.
+     *          The usernames of all active users are added to the game in a
+     *          randomized order.
+     */
+    synchronized public void startNewCommunistExpansionGame () {
+        if (activeUsernames.size() > CommunistExpansionGame.MAX_PLAYERS
+                || activeUsernames.size() < CommunistExpansionGame.MIN_PLAYERS) {
+            throw new RuntimeException("9-15 players allowed for communist expansion.");
+        } else if (isInGame()) {
+            throw new RuntimeException("Cannot start a new game while a game is in progress.");
+        }
+
+        // Check that all players have (non-default) icons set.
+        for (String username : activeUsernames) {
+            if (usernameToIcon.get(username).equals(DEFAULT_ICON)) {
+                throw new RuntimeException("Not all players have selected icons.");
+            }
+        }
+
+        usersInGame.clear();
+        usersInGame.addAll(userToUsername.values());
+
+        // Initialize the new game
+        List<String> playerNames = new ArrayList<>(activeUsernames);
+        Collections.shuffle(playerNames);
+
+        game = new CommunistExpansionGame(playerNames);
     }
 
     /**

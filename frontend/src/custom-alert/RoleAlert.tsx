@@ -9,6 +9,9 @@ import RoleLiberal6 from "../assets/role-liberal-6.png";
 import RoleFascist1 from "../assets/role-fascist-1.png";
 import RoleFascist2 from "../assets/role-fascist-2.png";
 import RoleFascist3 from "../assets/role-fascist-3.png";
+import RoleCommunist from "../assets/role-communist.png";
+import RoleAnarchist from "../assets/role-anarchist.png";
+import RoleMonarchist from "../assets/role-monarchist.png";
 
 import "./RoleAlert.css";
 import { GameState, Role } from "../types";
@@ -29,6 +32,7 @@ const LiberalImagesAltText = [
   "Your secret role is LIBERAL. The card shows an elderly woman with comically large glasses holding a chihuahua.",
   "Your secret role is LIBERAL. The card shows a woman with a large sun hat and shoulder-length bob smirking.",
 ];
+
 const HitlerImages = [RoleHitler];
 const HitlerImagesAltText = [
   "Your secret role is HITLER. The card shows a crocodile in a suit and WW2 German military hat glaring at the camera.",
@@ -39,6 +43,20 @@ const FascistImagesAltText = [
   "Your secret role is FASCIST. The card shows an iguana in a German military hat and suit with fangs bared.",
   "Your secret role is FASCIST. The card shows an iguana in a German military hat and suit with fangs bared.",
 ];
+const MonarchistImages = [RoleMonarchist];
+const MonarchistImagesAltText = [
+  "Your secret role is MONARCHIST. The card shows a hawk wearing miltary helmet and suit, planning something devious.",
+]
+
+const CommunistImages = [RoleCommunist];
+const CommunistImagesAltText = [
+  "Your secret role is COMMUNIST. The card shows a bear wearing a communist hat, looking unfazed."
+]
+const AnarchistImages = [RoleAnarchist];
+const AnarchistImagesAltText = [
+  "Your secret role is ANARCHIST. The card shows a devlish cat wearing a suit and waiting for the moment to strike."
+]
+
 
 const LiberalText = [
   "You win if the board fills with liberal policies, or if Hitler is executed.",
@@ -55,6 +73,22 @@ const HitlerText = [
   "You lose if the board fills with liberal policies or if you are executed.",
   "Try to gain trust and rely on the other fascists to open opportunities for you.",
 ];
+const MonarchistText = [
+  "You win if the board fills with fascist policies, or if Hitler is executed.",
+  "You lose if board fills with liberal policies, or if Hitler is elected chancellor once 3 fascist policies are on the board.",
+  "Once per game, you can reveal your secret role to everyone and call for a special election. You become the president and pick a chancellor candidate. At the same time, the president, under which the 3rd fascist policy was enacted, also picks a candidate. One of the two candidates become the chancellor depending upon the votes."
+]
+const AnarchistText = [
+  "You win if the communists win.",
+  "You lose if board fills with liberal policies, or if Hitler is elected chancellor once 3 fascist policies are on the board.",
+  "Once per game, you can reveal your secret role to everyone and execute a player."
+]
+const CommunistText = [
+  "You win if the board fills with communists policies, or if Hitler is executed.",
+  "You lose if the board fills with fascist policies, or if Hitler is elected chancellor after 3 fascist policies are passed.",
+  "Keep your eyes open and look for suspicious actions. Suss out Hitler, and remember that you can double cross others!",
+]
+
 
 type RoleAlertProps = {
   role?: Role;
@@ -86,6 +120,19 @@ class RoleAlert extends Component<RoleAlertProps> {
         images = FascistImages;
         imageAlts = FascistImagesAltText;
         break;
+      case Role.COMMUNIST:
+        images = CommunistImages;
+        imageAlts = CommunistImagesAltText;
+        break;
+      case Role.ANARCHIST:
+        images = AnarchistImages;
+        imageAlts = AnarchistImagesAltText;
+        break;
+      case Role.MONARCHIST:
+        images = MonarchistImages;
+        imageAlts = MonarchistImagesAltText;
+        break;
+      case Role.HITLER:
       default: // Hitler
         images = HitlerImages;
         imageAlts = HitlerImagesAltText;
@@ -107,6 +154,12 @@ class RoleAlert extends Component<RoleAlertProps> {
       roleText = FascistText;
     } else if (this.props.role === Role.LIBERAL) {
       roleText = LiberalText;
+    } else if (this.props.role === Role.COMMUNIST) {
+      roleText = CommunistText;
+    } else if (this.props.role === Role.ANARCHIST) {
+      roleText = AnarchistText;
+    } else if (this.props.role === Role.MONARCHIST) {
+      roleText = MonarchistText;
     }
 
     const { image, alt } = this.getRoleImageAndAlt();

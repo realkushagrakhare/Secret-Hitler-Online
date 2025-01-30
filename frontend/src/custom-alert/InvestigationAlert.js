@@ -5,7 +5,8 @@ import ButtonPrompt from "./ButtonPrompt";
 import PartyBack from "../assets/party-membership.png";
 import PartyLiberal from "../assets/party-membership-liberal.png";
 import PartyFascist from "../assets/party-membership-fascist.png";
-import { LIBERAL } from "../constants";
+import PartyCommunist from "../assets/party-membership-communist.png";
+import { LIBERAL, COMMUNIST } from "../constants";
 
 import "./InvestigationAlert.css";
 
@@ -33,7 +34,8 @@ class InvestigationAlert extends Component {
     let alt =
       this.props.target + " is a member of the " + this.props.party + " party.";
     let cardFrontSrc =
-      this.props.party === LIBERAL ? PartyLiberal : PartyFascist;
+      this.props.party === LIBERAL ? PartyLiberal 
+      : (this.props.party === COMMUNIST ? PartyCommunist : PartyFascist);
     let footerClass = this.state.showText
       ? "investigation-text-show"
       : "investigation-text-hide";

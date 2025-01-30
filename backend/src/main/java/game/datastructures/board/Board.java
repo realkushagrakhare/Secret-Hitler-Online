@@ -1,7 +1,6 @@
 package game.datastructures.board;
 
 import game.datastructures.Policy;
-
 import java.io.Serializable;
 
 public abstract class Board implements Serializable {
@@ -13,10 +12,13 @@ public abstract class Board implements Serializable {
     // fascists can win by electing Hitler chancellor
     final int MIN_POLICIES_FOR_CHANCELLOR_VICTORY = 3;
 
-    private int numFascistPolicies;
-    private int numLiberalPolicies;
+    protected int numFascistPolicies;
+    protected int numLiberalPolicies;
 
-    private Policy lastEnacted;
+    protected Policy lastEnacted;
+
+    protected int[] antiPolicyPlacement;
+    protected int[] policyRemoved;
 
 
     /** Constructs a new board.
@@ -26,6 +28,8 @@ public abstract class Board implements Serializable {
     public Board() {
         numFascistPolicies = 0;
         numLiberalPolicies = 0;
+        antiPolicyPlacement = new int[]{-1, -1, -1};
+        policyRemoved = new int[]{-1, -1, -1};
     }
 
     /**
@@ -79,6 +83,15 @@ public abstract class Board implements Serializable {
         return numLiberalPolicies;
     }
 
+    /**
+     * Gets the count of communist policies.
+     * @return the number of communist policies enacted.
+     */
+    public int getNumCommunistPolicies() {
+        throw new UnsupportedOperationException(
+                "Checking for communist number of policies is allowed only in communist expansion.");
+    }
+
 
     /**
      * Determines whether the liberal party won by policy count.
@@ -97,6 +110,14 @@ public abstract class Board implements Serializable {
         return getNumFascistPolicies() >= FASCIST_POLICIES_TO_WIN;
     }
 
+    /**
+     * Determines whether the communist party won by policy count.
+     * Will be used in the communist board.
+     */
+    public boolean isCommunistVictory() {
+        throw new UnsupportedOperationException(
+                "Checking for communist victory is allowed only in communist expansion.");
+    }
 
     /**
      * Gets whether the last policy activated a power.
@@ -104,7 +125,7 @@ public abstract class Board implements Serializable {
      * @return true if the last enacted policy activated a presidential power.
      */
     public boolean hasActivatedPower() {
-        return getActivatedPower() != PresidentialPower.NONE;
+        return getActivatedPower() != BoardPower.NONE;
     }
 
     /**
@@ -113,12 +134,16 @@ public abstract class Board implements Serializable {
      * @return If no presidential power was unlocked from the last policy enacted, returns NONE. Otherwise, returns the
      *         last activated presidential power.
      */
-    public PresidentialPower getActivatedPower() {
-        return PresidentialPower.NONE;
+    public BoardPower getActivatedPower() {
+        return BoardPower.NONE;
     }
 
     public boolean fascistsCanWinByElection() {
         return (getNumFascistPolicies() >= MIN_POLICIES_FOR_CHANCELLOR_VICTORY);
     }
+
+    public int[] getAntiPolicyPlacement(){ return antiPolicyPlacement; }
+
+    public int[] getPolicyRemoved(){ return policyRemoved;  }
 
 }

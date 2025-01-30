@@ -85,6 +85,10 @@ a {
     color: var(--textColorLiberal);
 }
 
+.highlight-burgundy {
+    color: var(--textColorCommunist);
+}
+
 /* Credit to https://designtheway.com/css-buttons/ for the CSS source code.*/
 button {
     background:transparent;

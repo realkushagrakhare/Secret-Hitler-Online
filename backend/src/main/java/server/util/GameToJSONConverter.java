@@ -1,5 +1,6 @@
 package server.util;
 
+import game.CommunistExpansionGame;
 import game.GameState;
 import game.SecretHitlerGame;
 import game.datastructures.Identity;
@@ -7,7 +8,7 @@ import game.datastructures.Player;
 import game.datastructures.Policy;
 import org.json.JSONObject;
 
-import java.util.List;
+import java.util.*;
 
 /**
  * Converts a SecretHitlerGame to a JSONObject that represents the game state.
@@ -17,7 +18,7 @@ public class GameToJSONConverter {
      * Creates a JSON object from a SecretHitlerGame that represents its state.
      * 
      * @param game the SecretHitlerGame to convert.
-     * @param name the name of the user to create JSON content for. This is used
+     * @param userName the name of the user to create JSON content for. This is used
      *             to determine what player identity information to send to the
      *             user.
      * @throws NullPointerException if {@code game} is null.
@@ -63,17 +64,13 @@ public class GameToJSONConverter {
             throw new NullPointerException();
         }
 
+        boolean isExanpsionGame = game instanceof CommunistExpansionGame;
+        CommunistExpansionGame expansionGame = isExanpsionGame ? (CommunistExpansionGame) game : null;
+
         JSONObject out = new JSONObject();
         JSONObject playerData = new JSONObject();
         String[] playerOrder = new String[game.getPlayerList().size()];
         List<Player> playerList = game.getPlayerList();
-
-        // Players should only be shown all roles under specific circumstances.
-        Identity role = game.getPlayer(userName).getIdentity();
-        boolean showAllRoles = game.hasGameFinished() || role == Identity.FASCIST
-                || (role == Identity.HITLER && game.getPlayerList().size() <= 6);
-
-        System.out.println("Show all roles: " + showAllRoles);
 
         for (int i = 0; i < playerList.size(); i++) {
             JSONObject playerObj = new JSONObject();
@@ -81,13 +78,14 @@ public class GameToJSONConverter {
 
             playerObj.put("alive", player.isAlive());
 
-            // Only include player role for self or under specific rules
-            if (player.getUsername().equals(userName) || showAllRoles) {
-                String id = player.getIdentity().toString();
-                playerObj.put("id", id);
-            }
+            // Role checks are now handled on the frontend.
+            String id = player.getIdentity().toString();
+            playerObj.put("id", id);
             playerObj.put("investigated", player.hasBeenInvestigated());
-
+            if(isExanpsionGame) {
+                playerObj.put("isRoleRevealed", player.hasRevealed());
+                playerObj.put("knowsCommunist", player.knowsCommunists());
+            }
             playerData.put(player.getUsername(), playerObj);
             playerOrder[i] = player.getUsername();
         }
@@ -112,6 +110,9 @@ public class GameToJSONConverter {
         out.put("discardSize", game.getDiscardSize());
         out.put("fascistPolicies", game.getNumFascistPolicies());
         out.put("liberalPolicies", game.getNumLiberalPolicies());
+        out.put("numFascist", game.getNumFascistPlayers());
+        out.put("numLiberal", game.getNumLiberalPlayers());
+
         out.put("userVotes", game.getVotes());
         out.put("vetoOccurred", game.didVetoOccurThisTurn());
 
@@ -123,6 +124,46 @@ public class GameToJSONConverter {
         }
         if (game.getState() == GameState.PRESIDENTIAL_POWER_PEEK) {
             out.put("peek", convertPolicyListToStringArray(game.getPeek()));
+        }
+
+        if (isExanpsionGame){
+            out.put("isExpansionGame", true);
+            out.put("hasAnarchist", expansionGame.isAnarchistInGame());
+            out.put("hasMonarchist", expansionGame.isMonarchistInGame());
+            out.put("doesAnarchistKnowCommunist", expansionGame.doesAnarchistKnowCommunists());
+            out.put("communistPolicies", expansionGame.getNumCommunistPolicies());
+            out.put("numCommunist", expansionGame.getNumCommunistPlayers());
+            out.put("communist1", expansionGame.getCommunist1());
+            out.put("communist2", expansionGame.getCommunist2());
+            out.put("usedAnarchistPower", expansionGame.getUsedAnarchistPower());
+            out.put("anarchist", expansionGame.getAnarchist());
+            out.put("monarchist", expansionGame.getMonarchist());
+            out.put("monarchistCandidate", expansionGame.getMonarchistCandidate());
+            out.put("opposition", expansionGame.getMonarchistOpposition());
+            out.put("antiPolicyPlace", expansionGame.getAntiPolicyPlacement());
+            out.put("policyRemovedPlace", expansionGame.getPolicyRemoved());
+
+
+            if(game.getState() == GameState.CHANCELLOR_POWER_BUGGING
+            || game.getState() ==  GameState.CHANCELLOR_POWER_BUGGING
+            || game.getState() == GameState.PRESIDENTIAL_POWER_GET_BUGGING_IDENTITY) {
+                out.put("vetoList", fillVetoList(expansionGame.getBuggingVetoList()));
+                out.put("vetoRemaining", expansionGame.buggingTries());
+            } else if(game.getState() == GameState.COMMUNIST_POWER_RADICALISATION
+            || game.getState() == GameState.COMMUNIST_POWER_RADICALISATION_ACCEPT_DENY) {
+                out.put("vetoList", fillVetoList(expansionGame.getRadicalisationVetoList()));
+            } else if (game.getState() == GameState.POLICY_REMOVAL){
+                out.put("peek", convertPolicyListToStringArray(expansionGame.getPolicyRemovalChoices()));
+            } else if(game.getLastState() == GameState.FIVE_YEAR_PLAN){
+                out.put("peek", convertPolicyListToStringArray(expansionGame.getFypPolicyAdded()));
+            }
+
+            if(game.getLastState() == GameState.POLICY_REMOVAL
+                    || game.getState() == GameState.POLICY_REMOVAL){
+                out.put("policyRemovalMap", getPolicyChoiceWithUsernames(expansionGame.getPolicyRemovalMap()));
+            } else if(game.getLastState() == GameState.COMMUNIST_POWER_RADICALISATION_ACCEPT_DENY){
+                out.put("radicalisationSuccess", expansionGame.getRadicalisationSuccess());
+            }
         }
 
         return out;
@@ -142,5 +183,21 @@ public class GameToJSONConverter {
             out[i] = list.get(i).getType().toString();
         }
         return out;
+    }
+
+    public static Map<String, String> getPolicyChoiceWithUsernames(Map<String, Policy> policyChoiceMap){
+        Map<String, String> stringMap = new HashMap<>();
+        for (Map.Entry<String, Policy> entry : policyChoiceMap.entrySet()) {
+            stringMap.put(entry.getKey(), entry.getValue().getType().toString());
+        }
+        return stringMap;
+    }
+
+    public static String[] fillVetoList(List<String> vetoList){
+        String[] vetoArray = new String[vetoList.size()];
+        int i = 0;
+        for (String vetoedUser : vetoList)
+            vetoArray[i++] = vetoedUser;
+        return vetoArray;
     }
 }
